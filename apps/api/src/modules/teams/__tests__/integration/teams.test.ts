@@ -10,8 +10,8 @@ import { clearLimits, setLimits } from '#tests/helpers/limits';
 // given a team at registration, named after its username, so a fresh account already
 // lists one.
 
-async function signUpClient() {
-  const user = await signUpTestUser();
+async function signUpClient(overrides: { team?: boolean } = {}) {
+  const user = await signUpTestUser(overrides);
   return { user, api: authedApi(user.cookie) };
 }
 
@@ -211,14 +211,15 @@ describe('teams', () => {
       expect((await api.teams.post({ name: 'a'.repeat(61), slug: 'longer' })).status).toBe(400);
     });
 
-    it('refuses one more team than the limits allow', async () => {
-      const { api } = await signUpClient();
-      // The account already owns the team signUpTestUser gave it.
+    it('refuses one more team than the workspace limits allow', async () => {
+      await signUpClient();
+      const { api } = await signUpClient({ team: false });
+      // The other account's team already fills the workspace.
       setLimits({ maxTeams: 1 });
 
       const created = await api.teams.post({ name: 'Design', slug: 'design' });
       expect(created.status).toBe(409);
-      expect(await api.teams.get().then((list) => list.data)).toHaveLength(1);
+      expect(await api.teams.get().then((list) => list.data)).toHaveLength(0);
     });
 
     it('creates the team under the slug it is given', async () => {

@@ -37,13 +37,13 @@ describe('SCIM group reconciliation', () => {
   beforeEach(resetDb);
   afterEach(clearLimits);
 
-  it('adds nobody the team has no seat for', async () => {
+  it('adds nobody the workspace has no seat for', async () => {
     const setup = await setupScim();
     const project = await createProject(setup.god, 'Marketing', 'MKT');
     const ada = await setup.scim.scim.v2.Users.post(scimUserBody());
     const groupId = await provisionGroup(setup, 'Engineering', [ada.data!.id]);
-    // The instance owner alone already fills the team.
-    setLimits({ maxTeamMembers: 1 });
+    // The instance owner alone already fills the workspace.
+    setLimits({ maxSeats: 1 });
 
     await setup.god.api.god['scim-groups']({ groupId }).mappings.put({
       mappings: [{ projectId: project.id, role: 'member', roleId: null }],

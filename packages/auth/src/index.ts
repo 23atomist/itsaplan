@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { db } from '@repo/db';
+import { db, instanceWorkspaceId } from '@repo/db';
 import { eq, sql, type SQL } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware, APIError } from 'better-auth/api';
@@ -511,6 +511,13 @@ export const auth = betterAuth({
               displayUsername: user.displayUsername ?? derived,
             },
           };
+        },
+        after: async (user) => {
+          if (user.role !== 'god') return;
+          await db
+            .insert(schema.workspaceManager)
+            .values({ workspaceId: await instanceWorkspaceId(db), userId: user.id, role: 'owner' })
+            .onConflictDoNothing();
         },
       },
     },

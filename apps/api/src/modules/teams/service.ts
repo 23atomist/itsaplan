@@ -3,6 +3,8 @@ import {
   agentTool,
   aiAgent,
   db,
+  instanceWorkspaceId,
+  teamWorkspaceId,
   integrationCredential,
   issue,
   issueActivity,
@@ -722,7 +724,10 @@ export async function insertOwnedTeam(
   ownerId: string,
   slug: string | null = null,
 ) {
-  const [row] = await tx.insert(team).values({ name, slug }).returning();
+  const [row] = await tx
+    .insert(team)
+    .values({ workspaceId: await instanceWorkspaceId(tx), name, slug })
+    .returning();
   const [membership] = await tx
     .insert(teamMember)
     .values({ teamId: row.id, userId: ownerId, role: 'owner' })
@@ -736,39 +741,34 @@ export async function insertOwnedTeam(
   return { team: row, membership };
 }
 
-// How many teams this account owns, which is what the team ceiling counts.
-async function countOwnedTeams(ownerId: string): Promise<number> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(teamMember)
-    .where(and(eq(teamMember.userId, ownerId), eq(teamMember.role, 'owner')));
-  return row?.count ?? 0;
-}
-
-// The people in the team, which is what a seat ceiling counts. An agent's bot user sits
-// in the member list but takes no seat.
-export async function listTeamMemberIds(teamId: number): Promise<string[]> {
+// The people across the workspace's teams, which is what a seat ceiling counts. An
+// agent's bot user sits in a member list but takes no seat.
+export async function listSeatHolderIds(workspaceId: number): Promise<string[]> {
   const rows = await db
-    .select({ userId: teamMember.userId })
+    .selectDistinct({ userId: teamMember.userId })
     .from(teamMember)
-    .where(and(eq(teamMember.teamId, teamId), sql`${teamMember.role} <> 'agent'`));
+    .innerJoin(team, eq(team.id, teamMember.teamId))
+    .where(and(eq(team.workspaceId, workspaceId), sql`${teamMember.role} <> 'agent'`));
   return rows.map((row) => row.userId);
 }
 
-// Refuses one more person in the team. Called wherever a membership is added for
-// somebody who is not in it yet.
-export async function assertTeamSeatFree(teamId: number): Promise<void> {
-  const { maxTeamMembers } = await getLimits({ teamId });
-  if (maxTeamMembers === 0) return;
-  if ((await listTeamMemberIds(teamId)).length >= maxTeamMembers) {
-    throw new HttpError(409, `The team is full at ${maxTeamMembers} members`);
+// Refuses to add this person to the team when that takes a seat the workspace does not
+// have. Somebody already in another team of the workspace holds a seat.
+export async function assertSeatFree(teamId: number, userId: string): Promise<void> {
+  const workspaceId = await teamWorkspaceId(teamId, db);
+  const { maxSeats } = await getLimits(workspaceId);
+  if (maxSeats === 0) return;
+  const holders = await listSeatHolderIds(workspaceId);
+  if (!holders.includes(userId) && holders.length >= maxSeats) {
+    throw new HttpError(409, `The workspace has no free seats out of ${maxSeats}`);
   }
 }
 
 export async function createTeam(name: string, slug: string, ownerId: string): Promise<TeamRow> {
-  const { maxTeams } = await getLimits({ ownerUserId: ownerId });
-  if (maxTeams > 0 && (await countOwnedTeams(ownerId)) >= maxTeams) {
-    throw new HttpError(409, `You already own ${maxTeams} teams`);
+  const workspaceId = await instanceWorkspaceId(db);
+  const { maxTeams } = await getLimits(workspaceId);
+  if (maxTeams > 0 && (await db.$count(team, eq(team.workspaceId, workspaceId))) >= maxTeams) {
+    throw new HttpError(409, `The workspace already has ${maxTeams} teams`);
   }
   assertSlugAllowed(slug);
   return withSlugConflict(() =>
