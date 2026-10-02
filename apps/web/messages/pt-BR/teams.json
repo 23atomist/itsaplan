@@ -538,5 +538,47 @@
     "projectsHint": "Um novo projeto começa com o padrão da instância.",
     "noProjects": "Este time ainda não tem projetos.",
     "projectToggleAria": "Alternar acesso MCP para {project}"
+  },
+  "workspace": {
+    "rail": "Workspaces",
+    "roles": {
+      "owner": "Proprietário",
+      "admin": "Administrador"
+    },
+    "info": {
+      "title": "Workspace",
+      "description": "O workspace ao qual suas equipes pertencem.",
+      "workspace": "Workspace",
+      "workspaceHint": "O nome que todos veem.",
+      "role": "Sua função",
+      "saved": "Workspace salvo"
+    },
+    "managers": {
+      "title": "Gestores",
+      "description": "O proprietário e os administradores gerenciam o workspace.",
+      "ownerOnly": "O proprietário e os administradores gerenciam o workspace. Só o proprietário adiciona ou remove administradores.",
+      "person": "Pessoa",
+      "role": "Função",
+      "addAction": "Adicionar administrador",
+      "addTitle": "Adicionar administrador",
+      "addDescription": "Escolha alguém das equipes do workspace.",
+      "search": "Buscar por nome ou e-mail",
+      "noCandidates": "Ninguém para adicionar",
+      "added": "{name} agora é administrador",
+      "removeAction": "Remover administrador",
+      "removeTitle": "Remover {name} como administrador?",
+      "removeDescription": "A pessoa continua nas equipes, mas não pode gerenciar o workspace.",
+      "removed": "{name} não é mais administrador"
+    },
+    "teams": {
+      "title": "Equipes",
+      "description": "As equipes deste workspace.",
+      "search": "Buscar equipes",
+      "empty": "Nenhuma equipe encontrada",
+      "name": "Equipe",
+      "members": "Membros",
+      "projects": "Projetos",
+      "created": "Criada"
+    }
   }
 }

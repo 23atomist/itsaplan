@@ -50,6 +50,7 @@ export function runsTeam(standing: TeamStanding | null): boolean {
 
 export interface TeamRow {
   id: number;
+  workspaceId: number;
   name: string;
   slug: string | null;
   // How web URLs name the team: the slug, or the id while it has none.
@@ -199,6 +200,7 @@ async function loadTeamRows(userId: string, teamId?: number): Promise<TeamRow[]>
   const rows = await db
     .select({
       id: team.id,
+      workspaceId: team.workspaceId,
       name: team.name,
       slug: team.slug,
       mcpEnabled: team.mcpEnabled,
@@ -288,6 +290,7 @@ async function loadTeamRows(userId: string, teamId?: number): Promise<TeamRow[]>
     const projectCount = projects.get(row.id);
     return {
       id: row.id,
+      workspaceId: row.workspaceId,
       name: row.name,
       slug: row.slug,
       ref: teamRef(row),
@@ -776,6 +779,7 @@ export async function createTeam(name: string, slug: string, ownerId: string): P
       const { team: row, membership } = await insertOwnedTeam(tx, name, ownerId, slug);
       return {
         id: row.id,
+        workspaceId: row.workspaceId,
         name: row.name,
         slug: row.slug,
         ref: teamRef(row),

@@ -538,5 +538,47 @@
     "projectsHint": "新项目创建时采用实例的默认设置。",
     "noProjects": "该团队还没有项目。",
     "projectToggleAria": "切换 {project} 的 MCP 访问"
+  },
+  "workspace": {
+    "rail": "工作区",
+    "roles": {
+      "owner": "所有者",
+      "admin": "管理员"
+    },
+    "info": {
+      "title": "工作区",
+      "description": "你的团队所属的工作区。",
+      "workspace": "工作区",
+      "workspaceHint": "所有人都能看到的名称。",
+      "role": "你的角色",
+      "saved": "工作区已保存"
+    },
+    "managers": {
+      "title": "管理者",
+      "description": "所有者和管理员管理工作区。",
+      "ownerOnly": "所有者和管理员管理工作区。只有所有者可以添加或移除管理员。",
+      "person": "成员",
+      "role": "角色",
+      "addAction": "添加管理员",
+      "addTitle": "添加管理员",
+      "addDescription": "从工作区的团队中选择一个人。",
+      "search": "按姓名或邮箱搜索",
+      "noCandidates": "没有可添加的人",
+      "added": "{name} 现在是管理员",
+      "removeAction": "移除管理员",
+      "removeTitle": "将 {name} 从管理员中移除？",
+      "removeDescription": "对方仍留在自己的团队中，但无法再管理工作区。",
+      "removed": "{name} 不再是管理员"
+    },
+    "teams": {
+      "title": "团队",
+      "description": "此工作区拥有的团队。",
+      "search": "搜索团队",
+      "empty": "未找到团队",
+      "name": "团队",
+      "members": "成员",
+      "projects": "项目",
+      "created": "创建时间"
+    }
   }
 }

@@ -35,6 +35,7 @@ export const updateTeamBody = t.Partial(t.Object({ name: teamName, slug: teamSlu
 // A team DTO (TeamRow from the service).
 export const TeamResponse = t.Object({
   id: t.Number(),
+  workspaceId: t.Number(),
   name: t.String(),
   slug: t.Nullable(t.String()),
   ref: t.String({ description: 'How web URLs name the team: its slug, or its id without one.' }),

@@ -538,5 +538,47 @@
     "projectsHint": "Un nouveau projet démarre avec la valeur par défaut de l'instance.",
     "noProjects": "Cette équipe n'a encore aucun projet.",
     "projectToggleAria": "Basculer l'accès MCP pour {project}"
+  },
+  "workspace": {
+    "rail": "Espaces de travail",
+    "roles": {
+      "owner": "Propriétaire",
+      "admin": "Administrateur"
+    },
+    "info": {
+      "title": "Espace de travail",
+      "description": "L'espace de travail auquel appartiennent vos équipes.",
+      "workspace": "Espace de travail",
+      "workspaceHint": "Le nom que tout le monde voit.",
+      "role": "Votre rôle",
+      "saved": "Espace de travail enregistré"
+    },
+    "managers": {
+      "title": "Responsables",
+      "description": "Le propriétaire et les administrateurs gèrent l'espace de travail.",
+      "ownerOnly": "Le propriétaire et les administrateurs gèrent l'espace de travail. Seul le propriétaire ajoute ou retire des administrateurs.",
+      "person": "Personne",
+      "role": "Rôle",
+      "addAction": "Ajouter un administrateur",
+      "addTitle": "Ajouter un administrateur",
+      "addDescription": "Choisissez quelqu'un dans les équipes de l'espace de travail.",
+      "search": "Rechercher par nom ou e-mail",
+      "noCandidates": "Personne à ajouter",
+      "added": "{name} est maintenant administrateur",
+      "removeAction": "Retirer l'administrateur",
+      "removeTitle": "Retirer {name} des administrateurs ?",
+      "removeDescription": "Cette personne reste dans ses équipes, mais ne peut plus gérer l'espace de travail.",
+      "removed": "{name} n'est plus administrateur"
+    },
+    "teams": {
+      "title": "Équipes",
+      "description": "Les équipes de cet espace de travail.",
+      "search": "Rechercher des équipes",
+      "empty": "Aucune équipe trouvée",
+      "name": "Équipe",
+      "members": "Membres",
+      "projects": "Projets",
+      "created": "Créée"
+    }
   }
 }

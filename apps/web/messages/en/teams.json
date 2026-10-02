@@ -538,5 +538,47 @@
     "projectsHint": "A new project starts with the instance default.",
     "noProjects": "This team has no projects yet.",
     "projectToggleAria": "Toggle MCP access for {project}"
+  },
+  "workspace": {
+    "rail": "Workspaces",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin"
+    },
+    "info": {
+      "title": "Workspace",
+      "description": "The workspace that owns your teams.",
+      "workspace": "Workspace",
+      "workspaceHint": "The name everyone sees for this workspace.",
+      "role": "Your role",
+      "saved": "Workspace saved"
+    },
+    "managers": {
+      "title": "Managers",
+      "description": "The owner and admins manage the workspace.",
+      "ownerOnly": "The owner and admins manage the workspace. Only the owner adds or removes admins.",
+      "person": "Person",
+      "role": "Role",
+      "addAction": "Add admin",
+      "addTitle": "Add admin",
+      "addDescription": "Pick someone from the workspace's teams.",
+      "search": "Search by name or email",
+      "noCandidates": "No one to add",
+      "added": "{name} is now an admin",
+      "removeAction": "Remove admin",
+      "removeTitle": "Remove {name} as admin?",
+      "removeDescription": "They stay in their teams but can't manage the workspace.",
+      "removed": "{name} is no longer an admin"
+    },
+    "teams": {
+      "title": "Teams",
+      "description": "The teams this workspace owns.",
+      "search": "Search teams",
+      "empty": "No teams found",
+      "name": "Team",
+      "members": "Members",
+      "projects": "Projects",
+      "created": "Created"
+    }
   }
 }

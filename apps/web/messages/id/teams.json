@@ -538,5 +538,47 @@
     "projectsHint": "Proyek baru dimulai dengan pengaturan bawaan instance.",
     "noProjects": "Tim ini belum memiliki proyek.",
     "projectToggleAria": "Aktifkan atau nonaktifkan akses MCP untuk {project}"
+  },
+  "workspace": {
+    "rail": "Workspace",
+    "roles": {
+      "owner": "Pemilik",
+      "admin": "Admin"
+    },
+    "info": {
+      "title": "Workspace",
+      "description": "Workspace yang memiliki tim Anda.",
+      "workspace": "Workspace",
+      "workspaceHint": "Nama yang dilihat semua orang.",
+      "role": "Peran Anda",
+      "saved": "Workspace disimpan"
+    },
+    "managers": {
+      "title": "Pengelola",
+      "description": "Pemilik dan admin mengelola workspace.",
+      "ownerOnly": "Pemilik dan admin mengelola workspace. Hanya pemilik yang menambah atau menghapus admin.",
+      "person": "Orang",
+      "role": "Peran",
+      "addAction": "Tambah admin",
+      "addTitle": "Tambah admin",
+      "addDescription": "Pilih seseorang dari tim di workspace.",
+      "search": "Cari berdasarkan nama atau email",
+      "noCandidates": "Tidak ada yang bisa ditambahkan",
+      "added": "{name} sekarang admin",
+      "removeAction": "Hapus admin",
+      "removeTitle": "Hapus {name} sebagai admin?",
+      "removeDescription": "Mereka tetap di tim, tetapi tidak bisa mengelola workspace.",
+      "removed": "{name} bukan admin lagi"
+    },
+    "teams": {
+      "title": "Tim",
+      "description": "Tim milik workspace ini.",
+      "search": "Cari tim",
+      "empty": "Tim tidak ditemukan",
+      "name": "Tim",
+      "members": "Anggota",
+      "projects": "Proyek",
+      "created": "Dibuat"
+    }
   }
 }

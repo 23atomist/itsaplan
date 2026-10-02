@@ -8,6 +8,15 @@ export const qk = {
   teams: ['teams'] as const,
   // One team: its counters and what the caller may do with what it holds.
   team: (teamId: number) => ['team', teamId] as const,
+  workspaces: ['workspaces'] as const,
+  // One workspace a caller manages. Its managers, candidates and teams sit under it, so
+  // invalidating the workspace refreshes all of them.
+  workspace: (workspaceId: number) => ['workspace', workspaceId] as const,
+  workspaceManagers: (workspaceId: number) => ['workspace', workspaceId, 'managers'] as const,
+  workspaceManagerCandidates: (workspaceId: number, search: string) =>
+    ['workspace', workspaceId, 'managers', 'candidates', search] as const,
+  workspaceTeams: (workspaceId: number, params: unknown) =>
+    ['workspace', workspaceId, 'teams', params] as const,
   teamProjectDefaults: (teamId: number) => ['team', teamId, 'project-defaults'] as const,
   // The members of a team and the projects it owns, each read by its own section. A
   // page is scoped by the search term and the window it was read with.

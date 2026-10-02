@@ -165,6 +165,12 @@ export const teamPath = (teamRef: string) => `/${encodeURIComponent(teamRef)}/se
 export const teamSectionPath = (teamRef: string, section: TeamSection) =>
   section === 'info' ? teamPath(teamRef) : `${teamPath(teamRef)}/${section}`;
 
+export type WorkspaceSection = 'info' | 'managers' | 'teams';
+
+// A workspace's settings, which only its owner and admins open.
+export const workspacePath = (workspaceId: number, section: WorkspaceSection = 'info') =>
+  section === 'info' ? `/workspaces/${workspaceId}` : `/workspaces/${workspaceId}/${section}`;
+
 // The invitee-facing link an owner shares. Points at this web app's public
 // /invite/:token page, which reads the token and shows the accept screen.
 export const inviteLink = (origin: string, token: string) => `${origin}/invite/${token}`;
