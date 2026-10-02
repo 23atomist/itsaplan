@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Info, ShieldCheck, Users } from 'lucide-react';
+import { Info, KeyRound, ShieldCheck, UsersRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { WorkspaceSummary } from '@/lib/api/endpoints/workspaces';
 import { workspacePath } from '@/utils/paths';
@@ -22,13 +22,22 @@ export default function WorkspaceSectionNav({ workspace }: { workspace: Workspac
       badge: detail && String(detail.managerCount),
       href: workspacePath(workspace.id, 'managers'),
     },
-    {
-      id: 'teams',
-      label: t('teams.title'),
-      icon: Users,
-      badge: detail && String(detail.teamCount),
-      href: workspacePath(workspace.id, 'teams'),
-    },
+    ...(workspace.role === 'owner'
+      ? [
+          {
+            id: 'sso',
+            label: t('sso.title'),
+            icon: KeyRound,
+            href: workspacePath(workspace.id, 'sso'),
+          },
+          {
+            id: 'scim',
+            label: t('scim.title'),
+            icon: UsersRound,
+            href: workspacePath(workspace.id, 'scim'),
+          },
+        ]
+      : []),
   ];
   const activeId = sections.find((entry) => entry.href === pathname)?.id ?? null;
 

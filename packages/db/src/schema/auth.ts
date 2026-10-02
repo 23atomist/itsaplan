@@ -24,6 +24,7 @@ export const user = pgTable("user", {
   role: text("role").default("user"),
   active: boolean("active").default(true),
   scimExternalId: text("scim_external_id"),
+  scimWorkspaceId: integer("scim_workspace_id"),
 });
 
 export const session = pgTable(

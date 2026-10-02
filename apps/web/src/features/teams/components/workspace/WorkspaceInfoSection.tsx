@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { WorkspaceBillingSection } from '@/cloud';
 import { useUpdateWorkspace, useWorkspaceQuery } from '@/services/workspaces.service';
 import SectionPageView from '@/components/common/page/SectionPageView';
 import SettingsCard from '@/components/common/page/SettingsCard';
@@ -41,25 +42,29 @@ export default function WorkspaceInfoSection({ workspaceId }: { workspaceId: num
         </Button>
       }
     >
-      <SettingsSection title={t('info.workspace')} description={t('info.workspaceHint')}>
-        <SettingsCard className="space-y-4 p-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="workspace-name">{tCommon('name')}</Label>
-            <Input
-              id="workspace-name"
-              value={draft ?? workspace.name}
-              maxLength={60}
-              onChange={(e) => setDraft(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <Label>{t('info.role')}</Label>
-            <Badge variant="secondary" className="font-normal">
-              {t(`roles.${workspace.role}`)}
-            </Badge>
-          </div>
-        </SettingsCard>
-      </SettingsSection>
+      <div className="space-y-10">
+        <SettingsSection title={t('info.workspace')} description={t('info.workspaceHint')}>
+          <SettingsCard className="space-y-4 p-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="workspace-name">{tCommon('name')}</Label>
+              <Input
+                id="workspace-name"
+                value={draft ?? workspace.name}
+                maxLength={60}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label>{t('info.role')}</Label>
+              <Badge variant="secondary" className="font-normal">
+                {t(`roles.${workspace.role}`)}
+              </Badge>
+            </div>
+          </SettingsCard>
+        </SettingsSection>
+
+        <WorkspaceBillingSection workspaceId={workspaceId} />
+      </div>
     </SectionPageView>
   );
 }

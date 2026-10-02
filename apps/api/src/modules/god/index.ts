@@ -1,7 +1,6 @@
 import { Elysia, t } from 'elysia';
 import {
   GOOGLE_REDIRECT_URI,
-  OIDC_REDIRECT_URI,
   getAuthSettings,
   setAuthSettings,
   getEmailSettings,
@@ -10,12 +9,7 @@ import {
   getGoogleSettings,
   setGoogleSettings,
   hasConfiguredGoogle,
-  getOidcSettings,
-  setOidcSettings,
   hasConfiguredOidc,
-  getScimSettings,
-  setScimSettings,
-  rotateScimToken,
 } from '@repo/auth';
 import { hasConfiguredEmailProvider, getStorageSettings } from '@repo/db';
 import { emailBody, hasEmailProvider, sendEmail } from '@repo/mailer';
@@ -27,18 +21,16 @@ import { paginate } from '#shared/pagination';
 import { noContent } from '#shared/http';
 import { deleteProject } from '#modules/projects/service';
 import {
+  assertUsableSignInMethod,
   deleteInstanceUser,
   getInstanceProject,
   getInstanceTeam,
   getInstanceUser,
   listInstanceProjects,
-  listInstanceProjectOptions,
   listInstanceTeams,
   listInstanceTeamProjects,
   listInstanceTeamMembers,
   listInstanceUsers,
-  listScimGroups,
-  setScimGroupMappings,
   verifyInstanceUserEmail,
 } from './service';
 import {
@@ -50,7 +42,6 @@ import {
   GoogleSettingsBody,
   GoogleSettingsResponse,
   InstanceProjectDetailResponse,
-  InstanceProjectOptionListResponse,
   InstanceProjectPageResponse,
   InstanceTeamMemberPageResponse,
   InstanceTeamPageResponse,
@@ -58,27 +49,18 @@ import {
   InstanceTeamResponse,
   InstanceUserDetailResponse,
   InstanceUserPageResponse,
-  OidcSettingsBody,
-  OidcSettingsResponse,
-  ScimGroupMappingsBody,
-  ScimGroupResponse,
-  ScimSettingsBody,
-  ScimSettingsResponse,
-  ScimTokenResponse,
   StorageSettingsBody,
   TelegramSettingsBody,
   TelegramSettingsResponse,
   deleteUserQuery,
   listUsersQuery,
   projectParams,
-  scimGroupParams,
   searchPageQuery,
   teamParams,
   userParams,
 } from './model';
 import { emailTestError } from './email-test';
 import { getInstanceBotSettings, setInstanceBotSettings } from '#modules/telegram/service';
-import { SCIM_BASE_URL } from '#modules/scim/resource';
 import {
   setStorageSettings,
   getHotkeySettings,
@@ -96,7 +78,8 @@ import {
 
 // God mode: instance-wide administration, open only to the "god" user (the first
 // registered account). It covers how people may register, the mail provider that
-// sends authentication email, the OAuth credentials, and SCIM provisioning. Invites
+// sends authentication email, and the Google credentials. Single sign-on through OIDC
+// and SCIM provisioning belong to a workspace and are set in its settings. Invites
 // are per team (team_invite), managed in the team panel and in the project's Members
 // section — there is nothing instance-level to add here.
 //
@@ -108,16 +91,6 @@ import {
 // be turned off while one can.
 async function hasSsoProvider(): Promise<boolean> {
   return (await hasConfiguredOidc()) || (await hasConfiguredGoogle());
-}
-
-async function assertUsableSignInMethod(
-  nextProviderUsable: boolean,
-  otherProviderUsable: boolean,
-): Promise<void> {
-  const auth = await getAuthSettings();
-  if (!auth.emailPassword && !nextProviderUsable && !otherProviderUsable) {
-    throw new HttpError(400, 'Enable password sign-in or another single sign-on provider first');
-  }
 }
 
 export const godRoutes = new Elysia({ name: 'god', detail: { tags: ['God'] } })
@@ -264,118 +237,6 @@ export const godRoutes = new Elysia({ name: 'god', detail: { tags: ['God'] } })
       detail: {
         summary: 'Update Google sign-in settings',
         description: 'Update the Google OAuth credentials and whether Google sign-in is offered.',
-      },
-    },
-  )
-
-  .get(
-    '/god/oidc-settings',
-    async () => ({ ...(await getOidcSettings()), redirectUri: OIDC_REDIRECT_URI }),
-    {
-      response: { 200: OidcSettingsResponse, ...errors(401, 403) },
-      detail: {
-        summary: 'Get OIDC sign-in settings',
-        description: 'Get the generic OIDC/OAuth2 provider settings (the client secret redacted).',
-      },
-    },
-  )
-
-  .put(
-    '/god/oidc-settings',
-    async ({ body }) => {
-      const current = await getOidcSettings();
-      const enabled = body.enabled ?? current.enabled;
-      const discoveryUrl = body.discoveryUrl ?? current.discoveryUrl;
-      const clientId = body.clientId ?? current.clientId;
-      const hasClientSecret = (body.clientSecret?.length ?? 0) > 0 || current.hasClientSecret;
-      // Turning it on without credentials would only offer a button that fails at
-      // the provider, the same rule the Google settings apply.
-      if (enabled && (discoveryUrl.length === 0 || clientId.length === 0 || !hasClientSecret)) {
-        throw new HttpError(400, 'Add the discovery URL, client ID and secret first');
-      }
-      await assertUsableSignInMethod(
-        enabled && discoveryUrl.length > 0 && clientId.length > 0 && hasClientSecret,
-        await hasConfiguredGoogle(),
-      );
-      const next = await setOidcSettings(body);
-      return { ...next, redirectUri: OIDC_REDIRECT_URI };
-    },
-    {
-      body: OidcSettingsBody,
-      response: { 200: OidcSettingsResponse, ...errors(400, 401, 403) },
-      detail: {
-        summary: 'Update OIDC sign-in settings',
-        description:
-          'Update the generic OIDC/OAuth2 credentials and whether the provider is offered.',
-      },
-    },
-  )
-
-  .get(
-    '/god/scim-settings',
-    async () => ({ ...(await getScimSettings()), baseUrl: SCIM_BASE_URL }),
-    {
-      response: { 200: ScimSettingsResponse, ...errors(401, 403) },
-      detail: {
-        summary: 'Get SCIM provisioning settings',
-        description: 'Get whether SCIM provisioning is on and whether a token has been generated.',
-      },
-    },
-  )
-
-  .put(
-    '/god/scim-settings',
-    async ({ body }) => {
-      const current = await getScimSettings();
-      // Enabling it without a token would leave the endpoint answering 401 to
-      // everything, which reads as a broken integration rather than a missing step.
-      if (body.enabled && !current.hasToken) {
-        throw new HttpError(400, 'Generate a SCIM token first');
-      }
-      return { ...(await setScimSettings(body)), baseUrl: SCIM_BASE_URL };
-    },
-    {
-      body: ScimSettingsBody,
-      response: { 200: ScimSettingsResponse, ...errors(400, 401, 403) },
-      detail: {
-        summary: 'Update SCIM provisioning settings',
-        description: 'Turn SCIM provisioning on or off.',
-      },
-    },
-  )
-
-  .post('/god/scim-settings/token', async () => ({ token: await rotateScimToken() }), {
-    response: { 200: ScimTokenResponse, ...errors(401, 403) },
-    detail: {
-      summary: 'Generate a SCIM token',
-      description:
-        'Generate the bearer token an identity provider sends to /scim/v2, replacing any ' +
-        'previous one. The value is returned once and cannot be read back.',
-    },
-  })
-
-  .get('/god/scim-groups', () => listScimGroups(), {
-    response: { 200: t.Array(ScimGroupResponse), ...errors(401, 403) },
-    detail: {
-      summary: 'List provisioned groups',
-      description:
-        'List the groups an identity provider has pushed, with their member counts and the ' +
-        'projects they grant membership in.',
-    },
-  })
-
-  .put(
-    '/god/scim-groups/:groupId/mappings',
-    ({ params, body }) => setScimGroupMappings(params.groupId, body.mappings),
-    {
-      params: scimGroupParams,
-      body: ScimGroupMappingsBody,
-      response: { 200: ScimGroupResponse, ...commonErrors },
-      detail: {
-        summary: "Set a group's project mappings",
-        description:
-          'Replace the list of projects a provisioned group grants membership in, then ' +
-          'reconcile the membership of every project the change touched.',
       },
     },
   )
@@ -601,14 +462,6 @@ export const godRoutes = new Elysia({ name: 'god', detail: { tags: ['God'] } })
       },
     },
   )
-
-  .get('/god/projects/options', () => listInstanceProjectOptions(), {
-    response: { 200: InstanceProjectOptionListResponse, ...errors(401, 403) },
-    detail: {
-      summary: 'List every instance project',
-      description: 'Every project on the instance as id, key and name, for a picker.',
-    },
-  })
 
   .get(
     '/god/projects/:projectId',

@@ -90,30 +90,6 @@ export interface InstanceGoogleSettingsPatch {
   clientSecret?: string;
 }
 
-// The instance's generic OIDC/OAuth2 provider. The client secret is never returned,
-// only a `hasClientSecret` flag. redirectUri is derived from the API origin and has
-// to be registered with the identity provider.
-export interface InstanceOidcSettings {
-  enabled: boolean;
-  label: string;
-  discoveryUrl: string;
-  clientId: string;
-  hasClientSecret: boolean;
-  scopes: string[];
-  pkce: boolean;
-  redirectUri: string;
-}
-
-export interface InstanceOidcSettingsPatch {
-  enabled?: boolean;
-  label?: string;
-  discoveryUrl?: string;
-  clientId?: string;
-  clientSecret?: string;
-  scopes?: string[];
-  pkce?: boolean;
-}
-
 // The instance Telegram bot: the one bot users link their accounts through, and the
 // default sender for Telegram notifications. `botUsername` is resolved from Telegram
 // when the token is saved.
@@ -209,16 +185,6 @@ export interface InstanceProjectMember {
 
 export interface InstanceProjectDetail extends InstanceProject {
   members: InstanceProjectMember[];
-  // The custom roles a member of this project can be put on, for the SCIM group
-  // mapping form.
-  roles: { id: number; name: string; isDefault: boolean }[];
-}
-
-// One instance project as a picker entry: what the SCIM mapping form needs to name it.
-export interface InstanceProjectOption {
-  id: number;
-  key: string;
-  name: string;
 }
 
 // Instance administration (god mode). Every route below is owner-only; a plain
@@ -287,14 +253,6 @@ export const updateInstanceGoogleSettings = (patch: InstanceGoogleSettingsPatch)
     body: JSON.stringify(patch),
   });
 
-export const getInstanceOidcSettings = () => request<InstanceOidcSettings>('/god/oidc-settings');
-
-export const updateInstanceOidcSettings = (patch: InstanceOidcSettingsPatch) =>
-  request<InstanceOidcSettings>('/god/oidc-settings', {
-    method: 'PUT',
-    body: JSON.stringify(patch),
-  });
-
 // The instance user directory: one page of accounts, and one account with the
 // projects it can reach. Search, the kind filter and paging all run on the server.
 export const listInstanceUsers = (
@@ -321,10 +279,6 @@ export const deleteInstanceUser = (userId: string, withProjects: boolean) =>
 // members. Search and paging run on the server.
 export const listInstanceProjects = (params: PageParams & { search?: string }) =>
   request<Page<InstanceProject>>(`/god/projects${pageQuery(params, { search: params.search })}`);
-
-// Every project, for the SCIM mapping picker; the directory above is paged.
-export const listInstanceProjectOptions = () =>
-  request<InstanceProjectOption[]>('/god/projects/options');
 
 export const getInstanceProject = (projectId: number) =>
   request<InstanceProjectDetail>(`/god/projects/${projectId}`);

@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   db,
+  instanceWorkspaceId,
   teamInvite,
   getSetting,
   setSetting,
@@ -14,23 +15,25 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { hasEmailProvider, type SmtpConfig } from '@repo/mailer';
 
-// Instance-wide authentication settings: who may register, whether email has to be
-// confirmed, which sign-in methods are offered, the mail provider used for
-// authentication email, and the credentials of the OAuth providers. Read by the
-// better-auth instance in ./index.ts (the registration gate, the mail senders, the
-// Google and OIDC providers) and written by god mode in the api, so it lives here
-// rather than in the api.
+// Authentication settings: who may register, whether email has to be confirmed,
+// which sign-in methods are offered, the mail provider used for authentication email,
+// and the credentials of the OAuth providers. Read by the better-auth instance in
+// ./index.ts (the registration gate, the mail senders, the Google and OIDC providers)
+// and written by the api, so it lives here rather than in the api.
 //
 // Non-secret settings are one jsonb blob in app_setting under the 'auth' key; the
-// credentials are encrypted in app_secret under 'auth.email', 'auth.google',
-// 'auth.oidc' and 'auth.scim', each with a `redacted` mirror the settings UI can read
-// without decrypting. The mail config is also read by the api and the worker, so its
-// shape and reader live in @repo/db; what stays here is the write side.
+// credentials are encrypted in app_secret, each with a `redacted` mirror the settings
+// UI can read without decrypting. The instance's own are under 'auth.email' and
+// 'auth.google'; OIDC and SCIM belong to a workspace and are stored under
+// 'workspace.<id>.oidc' and 'workspace.<id>.scim'. The mail config is also read by
+// the api and the worker, so its shape and reader live in @repo/db; what stays here
+// is the write side.
 
 const AUTH_SETTING_KEY = 'auth';
 const GOOGLE_SECRET_KEY = 'auth.google';
-const OIDC_SECRET_KEY = 'auth.oidc';
-const SCIM_SECRET_KEY = 'auth.scim';
+
+const oidcSecretKey = (workspaceId: number) => `workspace.${workspaceId}.oidc`;
+const scimSecretKey = (workspaceId: number) => `workspace.${workspaceId}.scim`;
 
 // Who may create an account.
 //   open   — anyone can sign up
@@ -251,10 +254,10 @@ export async function setGoogleSettings(patch: InstanceGooglePatch): Promise<Ins
 
 // ── Generic OIDC / OAuth2 ─────────────────────────────────────────────────────
 
-// One OIDC provider per instance, discovered from its well-known document. The
+// One OIDC provider per workspace, discovered from its well-known document. The
 // stored, decrypted credentials; read by the provider in ./index.ts on every
 // request, never returned over HTTP.
-export interface InstanceOidcConfig {
+export interface WorkspaceOidcConfig {
   enabled: boolean;
   // Text of the sign-in button. Free-form because it names the operator's own
   // identity provider, so the sign-in screen renders it as given rather than
@@ -271,7 +274,7 @@ export interface InstanceOidcConfig {
 
 // The config as returned to the client: the secret replaced by a boolean telling
 // whether a value is stored.
-export interface InstanceOidcDto {
+export interface WorkspaceOidcDto {
   enabled: boolean;
   label: string;
   discoveryUrl: string;
@@ -283,7 +286,7 @@ export interface InstanceOidcDto {
 
 // A partial write. The secret keeps its stored value when omitted or sent empty (a
 // masked field the user did not edit).
-export interface InstanceOidcPatch {
+export interface WorkspaceOidcPatch {
   enabled?: boolean;
   label?: string;
   discoveryUrl?: string;
@@ -293,7 +296,7 @@ export interface InstanceOidcPatch {
   pkce?: boolean;
 }
 
-function defaultOidcConfig(): InstanceOidcConfig {
+function defaultOidcConfig(): WorkspaceOidcConfig {
   return {
     enabled: false,
     label: '',
@@ -305,7 +308,7 @@ function defaultOidcConfig(): InstanceOidcConfig {
   };
 }
 
-function toOidcDto(config: InstanceOidcConfig): InstanceOidcDto {
+function toOidcDto(config: WorkspaceOidcConfig): WorkspaceOidcDto {
   return {
     enabled: config.enabled,
     label: config.label,
@@ -317,19 +320,25 @@ function toOidcDto(config: InstanceOidcConfig): InstanceOidcDto {
   };
 }
 
-export async function getOidcConfig(): Promise<InstanceOidcConfig> {
-  const stored = await readSecret<InstanceOidcConfig>(OIDC_SECRET_KEY);
+export async function getOidcConfig(workspaceId: number): Promise<WorkspaceOidcConfig> {
+  const stored = await readSecret<WorkspaceOidcConfig>(oidcSecretKey(workspaceId));
   // Merge over the default so a config written before a field was added stays valid.
   return { ...defaultOidcConfig(), ...(stored ?? {}) };
 }
 
-export async function getOidcSettings(): Promise<InstanceOidcDto> {
-  return toOidcDto(await getOidcConfig());
+// The provider the sign-in screen offers: the one of the instance workspace. Choosing
+// between the providers of several workspaces at sign-in is not built.
+export async function getSignInOidcConfig(): Promise<WorkspaceOidcConfig> {
+  return getOidcConfig(await instanceWorkspaceId(db));
+}
+
+export async function getOidcSettings(workspaceId: number): Promise<WorkspaceOidcDto> {
+  return toOidcDto(await getOidcConfig(workspaceId));
 }
 
 // Whether OIDC sign-in can run right now. The provider is always mounted, so this is
-// what both the god settings and the public sign-in screen ask before offering it.
-export function isOidcUsable(config: InstanceOidcConfig): boolean {
+// what both the settings and the public sign-in screen ask before offering it.
+export function isOidcUsable(config: WorkspaceOidcConfig): boolean {
   return (
     config.enabled &&
     config.discoveryUrl.length > 0 &&
@@ -339,19 +348,22 @@ export function isOidcUsable(config: InstanceOidcConfig): boolean {
 }
 
 export async function hasConfiguredOidc(): Promise<boolean> {
-  return isOidcUsable(await getOidcConfig());
+  return isOidcUsable(await getSignInOidcConfig());
 }
 
 // The button text the sign-in screen shows, or an empty string when OIDC is not
 // usable. Read by the public /auth-config.
 export async function getOidcLabel(): Promise<string> {
-  const config = await getOidcConfig();
+  const config = await getSignInOidcConfig();
   return isOidcUsable(config) ? config.label : '';
 }
 
-export async function setOidcSettings(patch: InstanceOidcPatch): Promise<InstanceOidcDto> {
-  const current = await getOidcConfig();
-  const next: InstanceOidcConfig = {
+export async function setOidcSettings(
+  workspaceId: number,
+  patch: WorkspaceOidcPatch,
+): Promise<WorkspaceOidcDto> {
+  const current = await getOidcConfig(workspaceId);
+  const next: WorkspaceOidcConfig = {
     enabled: patch.enabled ?? current.enabled,
     label: patch.label ?? current.label,
     discoveryUrl: patch.discoveryUrl ?? current.discoveryUrl,
@@ -361,21 +373,21 @@ export async function setOidcSettings(patch: InstanceOidcPatch): Promise<Instanc
     pkce: patch.pkce ?? current.pkce,
   };
   const redacted = toOidcDto(next);
-  await writeSecret(OIDC_SECRET_KEY, next, redacted);
+  await writeSecret(oidcSecretKey(workspaceId), next, redacted);
   return redacted;
 }
 
 // ── SCIM provisioning token ───────────────────────────────────────────────────
 
-// The bearer token an identity provider sends to /scim/v2. One token per instance,
+// The bearer token an identity provider sends to /scim/v2. One token per workspace,
 // generated here and shown to the owner once: only its prefix is kept in the
 // redacted mirror, so a lost token is replaced rather than recovered.
-export interface InstanceScimConfig {
+export interface WorkspaceScimConfig {
   enabled: boolean;
   token: string;
 }
 
-export interface InstanceScimDto {
+export interface WorkspaceScimDto {
   enabled: boolean;
   hasToken: boolean;
   // First characters of the stored token, so the owner can tell which one an IdP
@@ -383,61 +395,68 @@ export interface InstanceScimDto {
   tokenPrefix: string;
 }
 
+// A token reads scim_<workspaceId>_<secret>, so the workspace it opens is found
+// without trying the token of every workspace. A token issued before workspaces
+// existed reads scim_<secret> and belongs to the instance workspace.
 const SCIM_TOKEN_PREFIX = 'scim_';
+const SCIM_TOKEN_WORKSPACE = /^scim_(\d+)_/;
 
-function defaultScimConfig(): InstanceScimConfig {
+function defaultScimConfig(): WorkspaceScimConfig {
   return { enabled: false, token: '' };
 }
 
-function toScimDto(config: InstanceScimConfig): InstanceScimDto {
+function toScimDto(config: WorkspaceScimConfig): WorkspaceScimDto {
   return {
     enabled: config.enabled,
     hasToken: config.token.length > 0,
-    tokenPrefix: config.token.slice(0, SCIM_TOKEN_PREFIX.length + 6),
+    // Everything up to the last '_', in both token formats, and six characters of
+    // the secret.
+    tokenPrefix: config.token.slice(0, config.token.lastIndexOf('_') + 1 + 6),
   };
 }
 
-async function getScimConfig(): Promise<InstanceScimConfig> {
-  const stored = await readSecret<InstanceScimConfig>(SCIM_SECRET_KEY);
+async function getScimConfig(workspaceId: number): Promise<WorkspaceScimConfig> {
+  const stored = await readSecret<WorkspaceScimConfig>(scimSecretKey(workspaceId));
   return { ...defaultScimConfig(), ...(stored ?? {}) };
 }
 
-export async function getScimSettings(): Promise<InstanceScimDto> {
-  return toScimDto(await getScimConfig());
+export async function getScimSettings(workspaceId: number): Promise<WorkspaceScimDto> {
+  return toScimDto(await getScimConfig(workspaceId));
 }
 
-export async function setScimSettings(patch: { enabled?: boolean }): Promise<InstanceScimDto> {
-  const current = await getScimConfig();
-  const next: InstanceScimConfig = { ...current, enabled: patch.enabled ?? current.enabled };
+export async function setScimSettings(
+  workspaceId: number,
+  patch: { enabled?: boolean },
+): Promise<WorkspaceScimDto> {
+  const current = await getScimConfig(workspaceId);
+  const next: WorkspaceScimConfig = { ...current, enabled: patch.enabled ?? current.enabled };
   const redacted = toScimDto(next);
-  await writeSecret(SCIM_SECRET_KEY, next, redacted);
+  await writeSecret(scimSecretKey(workspaceId), next, redacted);
   return redacted;
 }
 
 // Mints a token, replacing any previous one, and returns it in the clear. This is
 // the only time the value leaves the server.
-export async function rotateScimToken(): Promise<string> {
-  const current = await getScimConfig();
-  const token = `${SCIM_TOKEN_PREFIX}${randomBytes(24).toString('hex')}`;
-  const next: InstanceScimConfig = { ...current, token };
-  await writeSecret(SCIM_SECRET_KEY, next, toScimDto(next));
+export async function rotateScimToken(workspaceId: number): Promise<string> {
+  const current = await getScimConfig(workspaceId);
+  const token = `${SCIM_TOKEN_PREFIX}${workspaceId}_${randomBytes(24).toString('hex')}`;
+  const next: WorkspaceScimConfig = { ...current, token };
+  await writeSecret(scimSecretKey(workspaceId), next, toScimDto(next));
   return token;
 }
 
-export async function isScimEnabled(): Promise<boolean> {
-  const config = await getScimConfig();
-  return config.enabled && config.token.length > 0;
-}
-
-// Constant-time comparison, so a wrong token cannot be recovered by timing the
-// answer. Lengths are compared first because timingSafeEqual rejects buffers of
-// different sizes.
-export async function verifyScimToken(candidate: string): Promise<boolean> {
-  const config = await getScimConfig();
-  if (!config.enabled || config.token.length === 0) return false;
+// The workspace a token opens, or null when it opens none: provisioning is off, no
+// token was generated, or the token is wrong. The comparison is constant-time, so a
+// wrong token cannot be recovered by timing the answer. Lengths are compared first
+// because timingSafeEqual rejects buffers of different sizes.
+export async function verifyScimToken(candidate: string): Promise<number | null> {
+  const named = candidate.match(SCIM_TOKEN_WORKSPACE)?.[1];
+  const workspaceId = named ? Number(named) : await instanceWorkspaceId(db);
+  const config = await getScimConfig(workspaceId);
+  if (!config.enabled || config.token.length === 0) return null;
   const expected = Buffer.from(config.token);
   const given = Buffer.from(candidate);
-  return expected.length === given.length && timingSafeEqual(expected, given);
+  return expected.length === given.length && timingSafeEqual(expected, given) ? workspaceId : null;
 }
 
 // ── Invites ───────────────────────────────────────────────────────────────────

@@ -21,15 +21,16 @@ hook sets it: the first user to register gets `"god"`, everyone after gets `"use
 ## Instance settings (`src/instance.ts`)
 
 Registration mode, which sign-in methods are offered, the mail provider, the OAuth
-credentials and the SCIM token are stored in the database, not in env, so god mode can
-change them without a restart. Read them
+credentials and the SCIM token are stored in the database, not in env, so god mode and the
+workspace settings can change them without a restart. Read them
 through this module — never inline a query on `app_setting` / `app_secret` elsewhere.
 
 - `app_setting` key `auth` → `{ registration, requireEmailVerification, magicLink,
   emailPassword }`.
-- `app_secret` keys `auth.email`, `auth.google`, `auth.oidc` and `auth.scim` → the mail
-  provider, the two OAuth providers and the SCIM token, encrypted with `@repo/crypto`,
-  each with a `redacted` mirror for the settings UI. Secrets never leave the server.
+- `app_secret` keys `auth.email` and `auth.google` → the mail provider and Google, set in
+  god mode; `workspace.<id>.oidc` and `workspace.<id>.scim` → a workspace's OIDC provider
+  and SCIM token, set by the workspace owner. All encrypted with `@repo/crypto`, each with
+  a `redacted` mirror for the settings UI. Secrets never leave the server.
 
 The mail provider is read by the api and the worker as well, so its shape and reader
 live in `@repo/db` (`domains/instance-email.ts`); what is here is the write side god
@@ -96,9 +97,11 @@ own check of `emailAndPassword.requireEmailVerification`.
 ## Generic OIDC
 
 `genericOAuth({ config: [oidcOptions] })` adds one OIDC/OAuth2 provider, discovered from
-the well-known document the operator points it at (`app_secret` key `auth.oidc`). It adds
-`/sign-in/oauth2` and `/oauth2/callback/:providerId`, and reuses the `account` table, so it
-adds none of its own.
+the well-known document the operator points it at. Every workspace stores its own
+(`app_secret` key `workspace.<id>.oidc`); sign-in uses the one of the instance workspace
+(`getSignInOidcConfig`). Choosing between the providers of several workspaces at sign-in is
+not built. It adds `/sign-in/oauth2` and `/oauth2/callback/:providerId`, and reuses the
+`account` table, so it adds none of its own.
 
 `providerId` is the constant `OIDC_PROVIDER_ID` (`"oidc"`): it is what the `account` rows
 store, and better-auth materialises the provider list once at startup, so the config array
@@ -126,7 +129,7 @@ which is what stops an instance being left with no way in.
 
 ## Deactivation and SCIM
 
-Two more `additionalFields` on the user table, both written only over SCIM and both
+Three more `additionalFields` on the user table, all written only over SCIM and all
 nullable, so every check is `active !== false` rather than `!active`:
 
 - `active` — the deprovisioning flag. `databaseHooks.session.create.before` refuses to open
@@ -134,10 +137,15 @@ nullable, so every check is `active !== false` rather than `!active`:
   refuses the sessions and API keys that were already open.
 - `scimExternalId` — the identity provider's own id, used to correlate an account it did
   not choose the id for.
+- `scimWorkspaceId` — the workspace whose SCIM provisioning manages the account, set when
+  its identity provider creates or claims it.
 
-`getScimSettings` / `rotateScimToken` / `verifyScimToken` hold the bearer token the SCIM
-endpoints in `apps/api` authenticate with. The token is returned in the clear exactly once,
-when it is generated; only its prefix is kept in the redacted mirror.
+`getScimSettings` / `rotateScimToken` / `verifyScimToken` hold the bearer token of each
+workspace that the SCIM endpoints in `apps/api` authenticate with. A token reads
+`scim_<workspaceId>_<secret>`, so `verifyScimToken` reads one workspace's token and answers
+with that workspace's id; a token issued before workspaces reads `scim_<secret>` and belongs
+to the instance workspace. The token is returned in the clear exactly once, when it is
+generated; only its prefix is kept in the redacted mirror.
 
 ## Passkey
 

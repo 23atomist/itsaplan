@@ -14,19 +14,27 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { user } from './auth';
-import { project, teamRole } from './app';
+import { project, teamRole, workspace } from './app';
 
-// A group as the identity provider sees it. Written only over SCIM: the group list
-// and its members are the provider's, and god mode shows them read-only.
-export const scimGroup = pgTable('scim_group', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  displayName: text('display_name').notNull().unique(),
-  // The provider's own id for the group, sent as `externalId` and used to find a
-  // group again after it is renamed.
-  externalId: text('external_id'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+// A group as the identity provider of one workspace sees it. Written only over SCIM:
+// the group list and its members are the provider's, and the workspace settings show
+// them read-only.
+export const scimGroup = pgTable(
+  'scim_group',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: integer('workspace_id')
+      .notNull()
+      .references(() => workspace.id, { onDelete: 'cascade' }),
+    displayName: text('display_name').notNull(),
+    // The provider's own id for the group, sent as `externalId` and used to find a
+    // group again after it is renamed.
+    externalId: text('external_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique().on(t.workspaceId, t.displayName)],
+);
 
 export const scimGroupMember = pgTable(
   'scim_group_member',
@@ -45,8 +53,9 @@ export const scimGroupMember = pgTable(
 );
 
 // What a group grants. A SCIM group carries only a name and a member list, so the
-// instance owner declares in god mode that group X makes its members part of project
-// Y at role Z. One group may map to several projects; at most one mapping per pair.
+// workspace owner declares that group X makes its members part of project Y of the
+// same workspace at role Z. One group may map to several projects; at most one
+// mapping per pair.
 // `role_id` names the team_role a "member" joins on, and is NULL for an owner (an
 // owner bypasses the permission matrix) or when the team's default role applies.
 export const scimGroupMapping = pgTable(

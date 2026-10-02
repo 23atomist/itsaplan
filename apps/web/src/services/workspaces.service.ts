@@ -1,14 +1,21 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  type WorkspaceTeamListParams,
+  type WorkspaceSsoSettingsPatch,
   addWorkspaceAdmin,
+  createWorkspaceScimToken,
   getWorkspace,
+  getWorkspaceScim,
+  getWorkspaceSso,
   listWorkspaceManagerCandidates,
   listWorkspaceManagers,
-  listWorkspaceTeams,
+  listWorkspaceProjectOptions,
+  listWorkspaceScimGroups,
   listWorkspaces,
   removeWorkspaceAdmin,
+  setWorkspaceScimGroupMappings,
   updateWorkspace,
+  updateWorkspaceScim,
+  updateWorkspaceSso,
 } from '@/lib/api/endpoints/workspaces';
 import { qk } from '@/services/queryKeys';
 
@@ -66,10 +73,76 @@ export function useRemoveWorkspaceAdmin(workspaceId: number) {
   return useManagerMutation(workspaceId, (userId) => removeWorkspaceAdmin(workspaceId, userId));
 }
 
-export function useWorkspaceTeamsQuery(workspaceId: number, params: WorkspaceTeamListParams) {
+export function useWorkspaceSsoQuery(workspaceId: number) {
   return useQuery({
-    queryKey: qk.workspaceTeams(workspaceId, params),
-    queryFn: () => listWorkspaceTeams(workspaceId, params),
-    placeholderData: keepPreviousData,
+    queryKey: qk.workspaceSso(workspaceId),
+    queryFn: () => getWorkspaceSso(workspaceId),
+  });
+}
+
+export function useUpdateWorkspaceSso(workspaceId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: WorkspaceSsoSettingsPatch) => updateWorkspaceSso(workspaceId, patch),
+    onSuccess: (data) => {
+      qc.setQueryData(qk.workspaceSso(workspaceId), data);
+      // The provider decides whether password sign-in may be turned off, and what the
+      // sign-in screen offers.
+      void qc.invalidateQueries({ queryKey: qk.instanceAuthSettings });
+      void qc.invalidateQueries({ queryKey: qk.authConfig });
+    },
+  });
+}
+
+// SCIM provisioning: the token an identity provider authenticates with, and what the
+// groups it pushes grant.
+export function useWorkspaceScimQuery(workspaceId: number) {
+  return useQuery({
+    queryKey: qk.workspaceScim(workspaceId),
+    queryFn: () => getWorkspaceScim(workspaceId),
+  });
+}
+
+export function useUpdateWorkspaceScim(workspaceId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: { enabled: boolean }) => updateWorkspaceScim(workspaceId, patch),
+    onSuccess: (data) => qc.setQueryData(qk.workspaceScim(workspaceId), data),
+  });
+}
+
+export function useCreateWorkspaceScimToken(workspaceId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => createWorkspaceScimToken(workspaceId),
+    // The response is the token itself, not the settings, so the redacted view has
+    // to be refetched for its new prefix.
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workspaceScim(workspaceId), exact: true }),
+  });
+}
+
+export function useWorkspaceScimGroupsQuery(workspaceId: number) {
+  return useQuery({
+    queryKey: qk.workspaceScimGroups(workspaceId),
+    queryFn: () => listWorkspaceScimGroups(workspaceId),
+  });
+}
+
+export function useSetWorkspaceScimGroupMappings(workspaceId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      groupId: string;
+      mappings: { projectId: number; role: 'owner' | 'member'; roleId: number | null }[];
+    }) => setWorkspaceScimGroupMappings(workspaceId, input.groupId, input.mappings),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workspaceScimGroups(workspaceId) }),
+  });
+}
+
+// Every project of the workspace, for the group mapping picker.
+export function useWorkspaceProjectOptionsQuery(workspaceId: number) {
+  return useQuery({
+    queryKey: qk.workspaceProjectOptions(workspaceId),
+    queryFn: () => listWorkspaceProjectOptions(workspaceId),
   });
 }

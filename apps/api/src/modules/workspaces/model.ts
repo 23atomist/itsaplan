@@ -1,5 +1,4 @@
 import { t } from 'elysia';
-import { pageQueryFields, pageResponse } from '#shared/pagination';
 
 export const workspaceParams = t.Object({ workspaceId: t.Numeric() });
 
@@ -11,11 +10,6 @@ export const addManagerBody = t.Object({ userId: t.String() });
 
 export const searchQuery = t.Object({
   search: t.Optional(t.String({ description: 'Matches the name or the address.' })),
-});
-
-export const workspaceTeamListQuery = t.Object({
-  search: t.Optional(t.String({ description: 'Matches the name or the slug.' })),
-  ...pageQueryFields,
 });
 
 const workspaceRole = t.Union([t.Literal('owner'), t.Literal('admin')]);
@@ -34,7 +28,6 @@ export const WorkspaceResponse = t.Object({
   id: t.Number(),
   name: t.String(),
   role: workspaceRole,
-  teamCount: t.Number(),
   managerCount: t.Number(),
 });
 
@@ -49,13 +42,77 @@ export const WorkspaceManagerListResponse = t.Array(t.Object({ ...person, role: 
 
 export const WorkspaceCandidateListResponse = t.Array(t.Object(person));
 
-export const WorkspaceTeamPageResponse = pageResponse(
+export const SsoSettingsResponse = t.Object({
+  enabled: t.Boolean(),
+  label: t.String(),
+  discoveryUrl: t.String(),
+  clientId: t.String(),
+  hasClientSecret: t.Boolean(),
+  scopes: t.Array(t.String()),
+  pkce: t.Boolean(),
+  // The value to register with the identity provider. Derived from the API origin,
+  // so the UI shows it rather than asking the owner to assemble it.
+  redirectUri: t.String(),
+});
+
+export const SsoSettingsBody = t.Object({
+  enabled: t.Optional(t.Boolean()),
+  label: t.Optional(t.String({ maxLength: 60 })),
+  discoveryUrl: t.Optional(t.String({ maxLength: 2048 })),
+  clientId: t.Optional(t.String({ maxLength: 512 })),
+  clientSecret: t.Optional(t.String({ maxLength: 512 })),
+  scopes: t.Optional(t.Array(t.String({ minLength: 1, maxLength: 64 }), { maxItems: 32 })),
+  pkce: t.Optional(t.Boolean()),
+});
+
+export const ScimSettingsResponse = t.Object({
+  enabled: t.Boolean(),
+  hasToken: t.Boolean(),
+  tokenPrefix: t.String(),
+  // Where to point the identity provider. Derived from the API origin, like the
+  // OIDC redirect URI.
+  baseUrl: t.String(),
+});
+
+export const ScimSettingsBody = t.Object({
+  enabled: t.Optional(t.Boolean()),
+});
+
+// The generated token, returned once. It is not stored anywhere it can be read
+// back, so a lost token is replaced rather than recovered.
+export const ScimTokenResponse = t.Object({
+  token: t.String(),
+});
+
+const scimGroupMapping = t.Object({
+  projectId: t.Integer(),
+  role: t.UnionEnum(['owner', 'member']),
+  // Which team_role a member joins on. Null for an owner (owners bypass the
+  // permission matrix) or to fall back to the team's default role.
+  roleId: t.Nullable(t.Integer()),
+});
+
+export const ScimGroupResponse = t.Object({
+  id: t.String(),
+  displayName: t.String(),
+  externalId: t.Nullable(t.String()),
+  memberCount: t.Integer(),
+  mappings: t.Array(
+    t.Intersect([scimGroupMapping, t.Object({ projectKey: t.String(), projectName: t.String() })]),
+  ),
+});
+
+export const ScimGroupMappingsBody = t.Object({
+  mappings: t.Array(scimGroupMapping, { maxItems: 100 }),
+});
+
+export const scimGroupParams = t.Object({ workspaceId: t.Numeric(), groupId: t.String() });
+
+export const WorkspaceProjectOptionListResponse = t.Array(
   t.Object({
     id: t.Number(),
+    key: t.String(),
     name: t.String(),
-    ref: t.String({ description: 'How web URLs name the team: its slug, or its id without one.' }),
-    memberCount: t.Number({ description: 'People in the team; agents are not counted.' }),
-    projectCount: t.Number(),
-    createdAt: t.String(),
+    roles: t.Array(t.Object({ id: t.Number(), name: t.String() })),
   }),
 );

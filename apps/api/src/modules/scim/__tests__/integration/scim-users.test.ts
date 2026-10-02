@@ -4,8 +4,8 @@ import { eq } from 'drizzle-orm';
 import { app, authedApi } from '#tests/helpers/app';
 import { resetDb } from '#tests/helpers/db';
 import { signUpTestUser } from '#tests/helpers/auth';
-import { addUser, createAgentUser } from '#modules/god/__tests__/helpers';
-import { patchOps, scimUserBody, setupScim } from '../helpers';
+import { addUser, createAgentUser, joinProject } from '#modules/god/__tests__/helpers';
+import { patchOps, scimUserBody, setupOtherWorkspace, setupScim } from '../helpers';
 
 describe('SCIM users', () => {
   beforeEach(resetDb);
@@ -485,6 +485,57 @@ describe('SCIM users', () => {
       const { scim } = await setupScim();
 
       expect((await scim.scim.v2.Users({ id: 'nope' }).delete()).status).toBe(404);
+    });
+  });
+
+  // A workspace's provider sees the accounts it manages and the people in its teams
+  // whom no provider manages yet. Nothing else on the instance is visible to it.
+  describe('workspaces', () => {
+    it('sees nobody outside its own teams', async () => {
+      const { god, scim } = await setupScim();
+      const member = await addUser({ email: 'member@example.com' });
+      const outsider = await addUser({ email: 'outsider@example.com' });
+      const [outsiderTeam] = (await outsider.api.teams.get()).data!;
+      await setupOtherWorkspace(god, [outsiderTeam!.id]);
+
+      const list = await scim.scim.v2.Users.get({ query: {} });
+      const ids = list.data!.Resources.map((u) => u.id);
+      expect(ids).toContain(member.id);
+      expect(ids).not.toContain(outsider.id);
+      expect((await scim.scim.v2.Users({ id: outsider.id }).get()).status).toBe(404);
+      const found = await scim.scim.v2.Users.get({
+        query: { filter: 'userName eq "outsider@example.com"' },
+      });
+      expect(found.data).toMatchObject({ totalResults: 0 });
+    });
+
+    it("keeps an account it provisioned out of another workspace's reach", async () => {
+      const { god, scim } = await setupScim();
+      const other = await setupOtherWorkspace(god);
+      const ada = await scim.scim.v2.Users.post(scimUserBody());
+
+      expect((await other.scim.scim.v2.Users({ id: ada.data!.id }).get()).status).toBe(404);
+      expect((await other.scim.scim.v2.Users({ id: ada.data!.id }).delete()).status).toBe(404);
+      const claim = await other.scim.scim.v2.Users.post(scimUserBody());
+      expect(claim.status).toBe(409);
+      expect(claim.error!.value).toMatchObject({ scimType: 'uniqueness' });
+    });
+
+    it('claims a person in the teams of two workspaces on its first write', async () => {
+      const { god, scim } = await setupScim();
+      const person = await addUser({ email: 'person@example.com' });
+      await god.api.projects.post({ name: 'Marketing', key: 'MKT' });
+      await joinProject(god, person, 'MKT', 'member');
+      const [godTeam] = (await god.api.teams.get()).data!;
+      const other = await setupOtherWorkspace(god, [godTeam!.id]);
+      expect((await other.scim.scim.v2.Users({ id: person.id }).get()).status).toBe(200);
+
+      const res = await scim.scim.v2
+        .Users({ id: person.id })
+        .patch(patchOps([{ op: 'replace', path: 'displayName', value: 'Person' }]));
+
+      expect(res.status).toBe(200);
+      expect((await other.scim.scim.v2.Users({ id: person.id }).get()).status).toBe(404);
     });
   });
 });

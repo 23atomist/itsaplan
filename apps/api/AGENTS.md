@@ -187,8 +187,10 @@ flag reaches: the agents, the skills, the tools, the roles and the credentials.
 to provision users and groups with. Three things make it unlike every other module:
 
 - **Mounted on the root app in `app.ts`, not under `planner`.** The planner's `authContext`
-  answers 401 before the bearer check could run. Authentication is one `onBeforeHandle`
-  against the instance SCIM token from `@repo/auth`.
+  answers 401 before the bearer check could run. Authentication is one `resolve` that hands
+  the token to `verifyScimToken` from `@repo/auth`, which answers with the workspace the
+  token belongs to. Every route acts for that workspace, and every function in `service.ts`
+  takes its id.
 - **Its own error document.** `onError` sits on a parent instance that `.use()`s the routes
   and answers only for paths under `/scim/v2`, handing everything else back to the planner's
   handler. Two reasons for that shape: an `onError` beside the routes widens the inferred
@@ -205,10 +207,19 @@ advertises exactly that. A create inserts the `user` row directly, the way `crea
 does, which deliberately skips the registration gate — with SCIM on, the identity provider
 decides who exists, and that is what makes `registration: 'closed'` plus SSO work.
 
+A workspace's provider sees the accounts it manages (`user.scimWorkspaceId` is the
+workspace) and the people in its teams whom no provider manages yet (`inWorkspace` in
+`service.ts`). A create or update claims the account for the workspace, after which no
+other workspace's provider sees it. Groups belong to a workspace (`scim_group.workspace_id`),
+their names are unique within it, and their members must be accounts it sees. The group
+mappings and the settings are routes of `modules/workspaces/`, open to the workspace owner
+only.
+
 `createScimUser`/`updateScimUser` refuse a `god`-role account outright (409): the role is
 what grants god mode, and nothing about the instance owner's account is provider-owned. A
 create for an address already linked (`user.scimExternalId` set) is refused the same way —
-it is a retry, not a new person, and must not overwrite the link a first create wrote.
+it is a retry, not a new person, and must not overwrite the link a first create wrote — and
+so is one for an address another workspace's provider manages.
 
 A group member removal arrives in two shapes: `path: 'members'` with the id(s) to drop in
 `value`, or RFC 7644 §3.5.2.2's path filter, `path: 'members[value eq "<id>"]'`, which Okta
@@ -224,7 +235,7 @@ its own: `resource.ts`'s `groupDisplayNames` reads a SCIM User's `groups` attrib
 channel and is read only for a claim, not for authentication. Both funnel into
 `syncEmbeddedGroups`, the same additive-only join a group pushed through `POST /Groups`
 gets — a name missing from a later sync is never removed by this path, only by an explicit
-`PATCH /Groups/:id` or an unmapping in god mode.
+`PATCH /Groups/:id` or an unmapping in the workspace settings.
 
 ## Security
 

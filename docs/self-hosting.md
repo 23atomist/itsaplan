@@ -38,9 +38,11 @@ passkey and cookie settings, telemetry opt-out, and worker tuning.
 
 Any provider with an OpenID Connect discovery document works: Keycloak, Authentik, KanIDM,
 GitLab, Forgejo, Okta, Entra. The credentials go into the database, not into `.env`, so
-nothing here needs a restart.
+nothing here needs a restart. Single sign-on is a setting of the workspace, and only its
+owner — the first account on the instance — can change it.
 
-1. In god mode, open **Integrations → Auth provider** and copy the redirect URI it shows
+1. Open the workspace settings (the gear next to the workspace name in the project picker),
+   go to **Single sign-on** and copy the redirect URI it shows
    (`<API_URL>/api/auth/oauth2/callback/oidc`).
 2. Create a confidential client at your provider with that redirect URI.
 3. Paste the discovery URL (`.../.well-known/openid-configuration`), the client ID and the
@@ -67,15 +69,18 @@ instance cannot be left with no way in.
 ## Provisioning with SCIM
 
 An identity provider can create, update and deactivate accounts over SCIM 2.0, and grant
-project access through its groups.
+project access through its groups. Provisioning is a setting of the workspace, and only its
+owner can change it.
 
-1. In god mode, open **Integrations → SCIM**, generate a token and copy it — it is shown
+1. In the workspace settings, open **SCIM**, generate a token and copy it — it is shown
    once — then turn provisioning on.
 2. Point your provider's SCIM application at the endpoint the page shows
    (`<API_URL>/scim/v2`), authenticating with `Authorization: Bearer <token>`.
 3. Push users, and groups if you use them.
 
-Deactivating someone at the provider (`active: false`) ends their sessions and refuses
+The provider sees the accounts it created or claimed and the people in the workspace's
+teams; an account someone registered for themselves is claimed by the first create for its
+address. Deactivating someone at the provider (`active: false`) ends their sessions and refuses
 their API keys; reactivating restores them with their projects intact. The instance owner's
 own account is outside SCIM's reach — a provisioning run can neither change nor deactivate
 it, and a repeated create for an address it already provisioned answers "already exists"

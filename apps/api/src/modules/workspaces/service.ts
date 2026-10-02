@@ -1,8 +1,7 @@
-import { db, project, team, teamMember, user, workspace, workspaceManager } from '@repo/db';
+import { db, team, teamMember, user, workspace, workspaceManager } from '@repo/db';
 import { and, asc, eq, ilike, inArray, ne, notExists, or, sql, type SQL } from 'drizzle-orm';
 import { requireUser, type AuthUser } from '#shared/access';
-import { HttpError, iso } from '#shared/lib';
-import { teamRef } from '#modules/teams/ref';
+import { HttpError } from '#shared/lib';
 
 export type WorkspaceRole = 'owner' | 'admin';
 
@@ -65,7 +64,6 @@ export async function getWorkspace(workspaceId: number, role: WorkspaceRole) {
     .select({
       id: workspace.id,
       name: workspace.name,
-      teamCount: db.$count(team, eq(team.workspaceId, workspace.id)),
       managerCount: db.$count(workspaceManager, eq(workspaceManager.workspaceId, workspace.id)),
     })
     .from(workspace)
@@ -153,49 +151,4 @@ export async function removeAdmin(workspaceId: number, userId: string): Promise<
   await db
     .delete(workspaceManager)
     .where(and(eq(workspaceManager.workspaceId, workspaceId), eq(workspaceManager.userId, userId)));
-}
-
-export async function listWorkspaceTeams(
-  workspaceId: number,
-  options: { search?: string; limit: number; offset: number },
-) {
-  const term = options.search?.trim();
-  const where = and(
-    eq(team.workspaceId, workspaceId),
-    term ? or(ilike(team.name, `%${term}%`), ilike(team.slug, `%${term}%`)) : undefined,
-  );
-  const [rows, [counted]] = await Promise.all([
-    db
-      .select({
-        id: team.id,
-        name: team.name,
-        slug: team.slug,
-        createdAt: team.createdAt,
-        memberCount: db.$count(
-          teamMember,
-          and(eq(teamMember.teamId, team.id), ne(teamMember.role, 'agent')),
-        ),
-        projectCount: db.$count(project, eq(project.teamId, team.id)),
-      })
-      .from(team)
-      .where(where)
-      .orderBy(asc(team.name), asc(team.id))
-      .limit(options.limit)
-      .offset(options.offset),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(team)
-      .where(where),
-  ]);
-  return {
-    items: rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      ref: teamRef(row),
-      memberCount: row.memberCount,
-      projectCount: row.projectCount,
-      createdAt: iso(row.createdAt),
-    })),
-    total: counted?.count ?? 0,
-  };
 }

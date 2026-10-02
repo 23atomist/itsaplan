@@ -165,7 +165,7 @@ export const teamPath = (teamRef: string) => `/${encodeURIComponent(teamRef)}/se
 export const teamSectionPath = (teamRef: string, section: TeamSection) =>
   section === 'info' ? teamPath(teamRef) : `${teamPath(teamRef)}/${section}`;
 
-export type WorkspaceSection = 'info' | 'managers' | 'teams';
+export type WorkspaceSection = 'info' | 'managers' | 'sso' | 'scim';
 
 // A workspace's settings, which only its owner and admins open.
 export const workspacePath = (workspaceId: number, section: WorkspaceSection = 'info') =>

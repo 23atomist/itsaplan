@@ -47,7 +47,7 @@ describe('workspaces', () => {
 
       const res = await ownerApi.workspaces({ workspaceId }).get();
       expect(res.status).toBe(200);
-      expect(res.data).toMatchObject({ role: 'owner', teamCount: 2, managerCount: 1 });
+      expect(res.data).toMatchObject({ role: 'owner', managerCount: 1 });
     });
 
     it('answers 404 to somebody who does not manage it', async () => {
@@ -138,30 +138,6 @@ describe('workspaces', () => {
       expect((await managers({ userId: admin.userId }).delete()).status).toBe(404);
       expect((await managers({ userId: owner.userId }).delete()).status).toBe(409);
       expect((await authedApi(admin.cookie).workspaces({ workspaceId }).get()).status).toBe(404);
-    });
-  });
-
-  describe('GET /workspaces/:workspaceId/teams', () => {
-    it('pages its teams with their counts', async () => {
-      const { owner, ownerApi, workspaceId } = await setup();
-      const member = await signUpTestUser();
-      // Made after the second team, so no project id matches a team id by chance.
-      await ownerApi.projects.post({ key: 'MKT', name: 'Marketing' });
-      await ownerApi.projects.post({ key: 'OPS', name: 'Operations' });
-
-      const res = await ownerApi.workspaces({ workspaceId }).teams.get({ query: { pageSize: 1 } });
-      expect(res.data).toMatchObject({ total: 2, page: 1, pageSize: 1 });
-      expect(res.data!.items).toHaveLength(1);
-
-      const found = await ownerApi
-        .workspaces({ workspaceId })
-        .teams.get({ query: { search: owner.username } });
-      expect(found.data!.items).toEqual([
-        expect.objectContaining({ name: owner.username, memberCount: 1, projectCount: 2 }),
-      ]);
-      expect((await authedApi(member.cookie).workspaces({ workspaceId }).teams.get()).status).toBe(
-        404,
-      );
     });
   });
 });
