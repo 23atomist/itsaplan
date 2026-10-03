@@ -15,7 +15,6 @@ export const qk = {
   workspaceManagers: (workspaceId: number) => ['workspace', workspaceId, 'managers'] as const,
   workspaceManagerCandidates: (workspaceId: number, search: string) =>
     ['workspace', workspaceId, 'managers', 'candidates', search] as const,
-  workspaceSso: (workspaceId: number) => ['workspace', workspaceId, 'sso'] as const,
   workspaceScim: (workspaceId: number) => ['workspace', workspaceId, 'scim'] as const,
   workspaceScimGroups: (workspaceId: number) =>
     ['workspace', workspaceId, 'scim', 'groups'] as const,
@@ -275,11 +274,12 @@ export const qk = {
   // The signed-in user's interface preferences (timezone, theme, issue open mode,
   // start page). Read app-wide, not just on the preferences page.
   accountPreferences: ['accountPreferences'] as const,
-  // Instance administration (god mode): the sign-in policy, the mail provider, Google
-  // sign-in and the Telegram bot. Not scoped to a project.
+  // Instance administration (god mode): the sign-in policy, the mail provider, the
+  // sign-in providers (Google and OIDC) and the Telegram bot. Not scoped to a project.
   instanceAuthSettings: ['instanceAuthSettings'] as const,
   instanceEmailSettings: ['instanceEmailSettings'] as const,
   instanceGoogleSettings: ['instanceGoogleSettings'] as const,
+  instanceOidcSettings: ['instanceOidcSettings'] as const,
   instanceTelegramSettings: ['instanceTelegramSettings'] as const,
   instanceProjectDefaults: ['instanceProjectDefaults'] as const,
   instanceStorageSettings: ['instanceStorageSettings'] as const,

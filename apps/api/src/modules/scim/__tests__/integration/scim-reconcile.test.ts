@@ -111,6 +111,30 @@ describe('SCIM group reconciliation', () => {
     expect(members.map((m) => m.userId)).not.toContain(ada.data!.id);
   });
 
+  it('grants a deactivated member nothing, and grants it again once they are back', async () => {
+    const setup = await setupScim();
+    const project = await createProject(setup.god, 'Marketing', 'MKT');
+    const ada = await setup.scim.scim.v2.Users.post(scimUserBody());
+    const groupId = await provisionGroup(setup, 'Engineering', [ada.data!.id]);
+    await setup.settings.groups({ groupId }).mappings.put({
+      mappings: [{ projectId: project.id, role: 'member', roleId: null }],
+    });
+    const setActive = (value: boolean) =>
+      setup.scim.scim.v2
+        .Users({ id: ada.data!.id })
+        .patch(patchOps([{ op: 'replace', path: 'active', value }]));
+
+    await setActive(false);
+    // A group change reconciles the project again; the deactivated member stays out.
+    await setup.scim.scim.v2
+      .Groups({ id: groupId })
+      .patch(patchOps([{ op: 'replace', path: 'displayName', value: 'Engineers' }]));
+    expect((await membersOf(setup.god, 'MKT')).map((m) => m.userId)).not.toContain(ada.data!.id);
+
+    await setActive(true);
+    expect((await membersOf(setup.god, 'MKT')).map((m) => m.userId)).toContain(ada.data!.id);
+  });
+
   it('grants the team membership the project one stands on, and takes it back', async () => {
     const setup = await setupScim();
     const project = await createProject(setup.god, 'Marketing', 'MKT');

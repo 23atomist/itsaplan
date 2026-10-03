@@ -6,10 +6,10 @@ import { syncEmbeddedGroups } from './service';
 
 // Folds an OIDC sign-in's `groups` claim into the same scim_group /
 // scim_group_member tables a SCIM sync writes to, so a group mapped to a project
-// grants access in a workspace that uses OIDC, SCIM, or both. The groups belong to
-// the instance workspace, whose provider the sign-in used. Runs after every
-// successful callback, not just the first one, so membership follows the provider
-// going forward.
+// grants access in a workspace that uses OIDC, SCIM, or both. The provider is the
+// instance's, set in god mode, and its groups go to the instance workspace. Runs
+// after every successful callback, not just the first one, so membership follows the
+// provider going forward.
 //
 // The claim lives in the ID token, not necessarily the userinfo response some
 // providers keep small — better-auth stores the raw token on the linked `account`

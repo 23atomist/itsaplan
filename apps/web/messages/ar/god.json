@@ -257,6 +257,17 @@
     "clientSecret": "سر العميل",
     "redirectUri": "URL إعادة التوجيه",
     "redirectUriHint": "سجّل ده في عميل OAuth في وحدة تحكم Google Cloud. لو مش متطابق بالحرف، Google هترفض تسجيل الدخول.",
-    "copyRedirectUri": "نسخ URL إعادة التوجيه"
+    "copyRedirectUri": "نسخ URL إعادة التوجيه",
+    "oidc": "OpenID Connect",
+    "oidcConfigured": "العنوان الذي لا حساب له يحصل على حساب، والعنوان الذي له حساب مؤكَّد يدخل إليه.",
+    "oidcMissing": "أضف عنوان الاكتشاف ومعرّف العميل والسر أولاً.",
+    "discoveryUrl": "عنوان الاكتشاف",
+    "discoveryUrlHint": "عنوان ‎.well-known/openid-configuration‎ الخاص بمزوّدك. تُقرأ منه نقاط التخويل والرمز ومعلومات المستخدم.",
+    "oidcLabel": "نص الزر",
+    "oidcLabelPlaceholder": "تسجيل الدخول عبر Acme SSO",
+    "oidcLabelHint": "يسمّي مزوّدك على زر تسجيل الدخول. اتركه فارغاً لنص عام.",
+    "scopes": "النطاقات",
+    "scopesHint": "مفصولة بمسافات. openid مطلوب، وprofile وemail يملآن الاسم والعنوان.",
+    "oidcRedirectUriHint": "سجّل هذا العنوان كعنوان إعادة توجيه في العميل لدى مزوّد الهوية. يرفض المزوّد تسجيل الدخول إن لم يطابقه تماماً."
   }
 }

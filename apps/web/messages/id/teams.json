@@ -9,6 +9,8 @@
     "submit": "Buat tim"
   },
   "sections": {
+    "collapse": "Ciutkan bagian",
+    "expand": "Luaskan bagian",
     "info": {
       "title": "Info",
       "description": "Tim dan posisi Anda di dalamnya."
@@ -541,6 +543,7 @@
   },
   "workspace": {
     "rail": "Workspace",
+    "general": "Umum",
     "roles": {
       "owner": "Pemilik",
       "admin": "Admin"
@@ -570,32 +573,12 @@
       "removeDescription": "Mereka tetap di tim, tetapi tidak bisa mengelola workspace.",
       "removed": "{name} bukan admin lagi"
     },
-    "sso": {
-      "title": "Single sign-on",
-      "description": "Penyedia identitas yang digunakan orang untuk masuk.",
-      "saved": "Single sign-on disimpan",
-      "oidc": "OpenID Connect",
-      "oidcConfigured": "Alamat tanpa akun akan dibuatkan akun; alamat yang sudah memiliki akun terkonfirmasi akan masuk ke akun tersebut.",
-      "oidcMissing": "Tambahkan URL penemuan, client ID, dan client secret terlebih dahulu.",
-      "discoveryUrl": "URL Penemuan",
-      "discoveryUrlHint": "File .well-known/openid-configuration penyedia Anda. Endpoint otorisasi, token, dan userinfo dibaca dari sana.",
-      "clientId": "Client ID",
-      "clientSecret": "Client secret",
-      "oidcLabel": "Label tombol",
-      "oidcLabelPlaceholder": "Masuk dengan SSO Acme",
-      "oidcLabelHint": "Menamai penyedia Anda pada tombol masuk. Biarkan kosong untuk label umum.",
-      "scopes": "Cakupan (Scopes)",
-      "scopesHint": "Dipisahkan oleh spasi. openid wajib diisi; profile dan email mengisi nama dan alamat.",
-      "redirectUri": "URI Pengalihan",
-      "redirectUriHint": "Daftarkan ini sebagai URI pengalihan pada klien di penyedia identitas Anda. Penyedia akan menolak proses masuk jika tidak cocok persis.",
-      "copyRedirectUri": "Salin URI pengalihan"
-    },
     "scim": {
       "title": "SCIM",
-      "description": "Izinkan penyedia identitas membuat, memperbarui, dan menonaktifkan akun workspace ini, serta memberikan akses proyek melalui grupnya.",
+      "description": "Izinkan penyedia identitas menambahkan orang ke workspace ini, mengeluarkan mereka, dan memberikan akses proyek melalui grupnya.",
       "saved": "Pengaturan SCIM disimpan",
       "provisioning": "Provisioning",
-      "provisioningConfigured": "Penyedia identitas Anda membuat, memperbarui, dan menonaktifkan akun workspace ini.",
+      "provisioningConfigured": "Penyedia identitas Anda menambahkan orang ke workspace ini dan mengeluarkan mereka.",
       "provisioningMissing": "Buat token terlebih dahulu.",
       "token": "Token",
       "noToken": "Belum ada token yang dibuat",

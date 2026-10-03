@@ -15,6 +15,7 @@ import {
   type InstanceAuthSettingsPatch,
   type InstanceEmailSettingsPatch,
   type InstanceGoogleSettingsPatch,
+  type InstanceOidcSettingsPatch,
   type InstanceTelegramSettingsPatch,
   type InstanceUserKind,
   getInstanceAuthSettings,
@@ -24,6 +25,8 @@ import {
   testInstanceEmailSettings,
   getInstanceGoogleSettings,
   updateInstanceGoogleSettings,
+  getInstanceOidcSettings,
+  updateInstanceOidcSettings,
   getInstanceTelegramSettings,
   updateInstanceTelegramSettings,
   getInstanceProjectDefaults,
@@ -107,6 +110,25 @@ export function useUpdateInstanceGoogleSettings() {
     mutationFn: (patch: InstanceGoogleSettingsPatch) => updateInstanceGoogleSettings(patch),
     onSuccess: (data) => {
       qc.setQueryData(qk.instanceGoogleSettings, data);
+      invalidateSignInMethods(qc);
+    },
+  });
+}
+
+// The instance's generic OIDC provider, the second way in besides Google.
+export function useInstanceOidcSettingsQuery() {
+  return useQuery({
+    queryKey: qk.instanceOidcSettings,
+    queryFn: () => getInstanceOidcSettings(),
+  });
+}
+
+export function useUpdateInstanceOidcSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: InstanceOidcSettingsPatch) => updateInstanceOidcSettings(patch),
+    onSuccess: (data) => {
+      qc.setQueryData(qk.instanceOidcSettings, data);
       invalidateSignInMethods(qc);
     },
   });

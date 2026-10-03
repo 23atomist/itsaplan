@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import type { WorkspaceSsoSettings } from '@/lib/api/endpoints/workspaces';
-import { useUpdateWorkspaceSso } from '@/services/workspaces.service';
+import type { InstanceOidcSettings } from '@/lib/api/endpoints/god';
+import { useUpdateInstanceOidcSettings } from '../services/god.service';
 
-export interface WorkspaceSsoForm {
+export interface GodOidcForm {
   enabled: boolean;
   setEnabled: (v: boolean) => void;
   label: string;
@@ -22,7 +22,7 @@ export interface WorkspaceSsoForm {
   // the user has not retyped. The switch stays off without them: the API refuses it,
   // and the sign-in button would otherwise only fail at the provider.
   hasCredentials: boolean;
-  settings: WorkspaceSsoSettings;
+  settings: InstanceOidcSettings;
   dirty: boolean;
   saving: boolean;
   save: () => Promise<void>;
@@ -32,13 +32,10 @@ function parseScopes(value: string): string[] {
   return value.split(/[\s,]+/).filter(Boolean);
 }
 
-// Form state for the workspace's OIDC provider. The secret starts blank and an empty
-// field on save keeps the stored one.
-export function useWorkspaceSsoForm(
-  workspaceId: number,
-  settings: WorkspaceSsoSettings,
-): WorkspaceSsoForm {
-  const update = useUpdateWorkspaceSso(workspaceId);
+// Form state for the generic OIDC provider. Same contract as the Google credentials:
+// the secret starts blank and an empty field on save keeps the stored one.
+export function useGodOidcForm(settings: InstanceOidcSettings): GodOidcForm {
+  const update = useUpdateInstanceOidcSettings();
 
   const [enabled, setEnabled] = useState(settings.enabled);
   const [label, setLabel] = useState(settings.label);

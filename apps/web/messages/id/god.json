@@ -257,6 +257,17 @@
     "clientSecret": "Client secret",
     "redirectUri": "URI Pengalihan",
     "redirectUriHint": "Daftarkan ini pada klien OAuth di konsol Google Cloud. Google akan menolak proses masuk jika tidak cocok persis.",
-    "copyRedirectUri": "Salin URI pengalihan"
+    "copyRedirectUri": "Salin URI pengalihan",
+    "oidc": "OpenID Connect",
+    "oidcConfigured": "Alamat tanpa akun akan dibuatkan akun; alamat yang sudah memiliki akun terkonfirmasi akan masuk ke akun tersebut.",
+    "oidcMissing": "Tambahkan URL penemuan, client ID, dan client secret terlebih dahulu.",
+    "discoveryUrl": "URL Penemuan",
+    "discoveryUrlHint": "File .well-known/openid-configuration penyedia Anda. Endpoint otorisasi, token, dan userinfo dibaca dari sana.",
+    "oidcLabel": "Label tombol",
+    "oidcLabelPlaceholder": "Masuk dengan SSO Acme",
+    "oidcLabelHint": "Menamai penyedia Anda pada tombol masuk. Biarkan kosong untuk label umum.",
+    "scopes": "Cakupan (Scopes)",
+    "scopesHint": "Dipisahkan oleh spasi. openid wajib diisi; profile dan email mengisi nama dan alamat.",
+    "oidcRedirectUriHint": "Daftarkan ini sebagai URI pengalihan pada klien di penyedia identitas Anda. Penyedia akan menolak proses masuk jika tidak cocok persis."
   }
 }

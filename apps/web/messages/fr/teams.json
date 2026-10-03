@@ -9,6 +9,8 @@
     "submit": "Créer l'équipe"
   },
   "sections": {
+    "collapse": "Réduire les sections",
+    "expand": "Développer les sections",
     "info": {
       "title": "Informations",
       "description": "L'équipe et votre place au sein de celle-ci."
@@ -541,6 +543,7 @@
   },
   "workspace": {
     "rail": "Espaces de travail",
+    "general": "Général",
     "roles": {
       "owner": "Propriétaire",
       "admin": "Administrateur"
@@ -570,32 +573,12 @@
       "removeDescription": "Cette personne reste dans ses équipes, mais ne peut plus gérer l'espace de travail.",
       "removed": "{name} n'est plus administrateur"
     },
-    "sso": {
-      "title": "Authentification unique",
-      "description": "Le fournisseur d'identité avec lequel les personnes se connectent.",
-      "saved": "Authentification unique enregistrée",
-      "oidc": "OpenID Connect",
-      "oidcConfigured": "Une adresse sans compte en obtient un ; une adresse qui a déjà un compte confirmé s'y connecte.",
-      "oidcMissing": "Ajoutez d'abord l'URL de découverte, l'identifiant et le secret client.",
-      "discoveryUrl": "URL de découverte",
-      "discoveryUrlHint": "Le .well-known/openid-configuration de votre fournisseur. Les points d'accès d'autorisation, de token et de userinfo y sont lus.",
-      "clientId": "Identifiant client",
-      "clientSecret": "Secret client",
-      "oidcLabel": "Libellé du bouton",
-      "oidcLabelPlaceholder": "Se connecter avec Acme SSO",
-      "oidcLabelHint": "Nomme votre fournisseur sur le bouton de connexion. Laissez vide pour un libellé générique.",
-      "scopes": "Scopes",
-      "scopesHint": "Séparés par des espaces. openid est obligatoire ; profile et email renseignent le nom et l'adresse.",
-      "redirectUri": "URI de redirection",
-      "redirectUriHint": "Enregistrez-la comme URI de redirection sur le client de votre fournisseur d'identité. Le fournisseur refuse la connexion si elle ne correspond pas exactement.",
-      "copyRedirectUri": "Copier l'URI de redirection"
-    },
     "scim": {
       "title": "SCIM",
-      "description": "Permettez à un fournisseur d'identité de créer, mettre à jour et désactiver les comptes de cet espace de travail, et d'accorder l'accès aux projets via ses groupes.",
+      "description": "Permettez à un fournisseur d'identité d'ajouter des personnes à cet espace de travail, de les en retirer et d'accorder l'accès aux projets via ses groupes.",
       "saved": "Paramètres SCIM enregistrés",
       "provisioning": "Provisionnement",
-      "provisioningConfigured": "Votre fournisseur d'identité crée, met à jour et désactive les comptes de cet espace de travail.",
+      "provisioningConfigured": "Votre fournisseur d'identité ajoute des personnes à cet espace de travail et les en retire.",
       "provisioningMissing": "Générez d'abord un token.",
       "token": "Token",
       "noToken": "Aucun token généré pour l'instant",

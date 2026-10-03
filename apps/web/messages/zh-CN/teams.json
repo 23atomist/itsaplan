@@ -9,6 +9,8 @@
     "submit": "创建团队"
   },
   "sections": {
+    "collapse": "收起分区",
+    "expand": "展开分区",
     "info": {
       "title": "信息",
       "description": "团队及你在其中的角色。"
@@ -541,6 +543,7 @@
   },
   "workspace": {
     "rail": "工作区",
+    "general": "常规",
     "roles": {
       "owner": "所有者",
       "admin": "管理员"
@@ -570,32 +573,12 @@
       "removeDescription": "对方仍留在自己的团队中，但无法再管理工作区。",
       "removed": "{name} 不再是管理员"
     },
-    "sso": {
-      "title": "单点登录",
-      "description": "用户登录所用的身份提供方。",
-      "saved": "单点登录已保存",
-      "oidc": "OpenID Connect",
-      "oidcConfigured": "没有账号的邮箱会自动创建账号；已有已确认账号的邮箱将登录该账号。",
-      "oidcMissing": "请先填写发现地址、客户端 ID 和密钥。",
-      "discoveryUrl": "发现地址",
-      "discoveryUrlHint": "身份提供方的 .well-known/openid-configuration 地址，授权、令牌和用户信息端点都从中读取。",
-      "clientId": "客户端 ID",
-      "clientSecret": "客户端密钥",
-      "oidcLabel": "按钮文字",
-      "oidcLabelPlaceholder": "使用 Acme SSO 登录",
-      "oidcLabelHint": "在登录按钮上标明你的提供方。留空则使用通用文字。",
-      "scopes": "权限范围",
-      "scopesHint": "以空格分隔。openid 为必需；profile 和 email 用于填充姓名和邮箱。",
-      "redirectUri": "重定向 URI",
-      "redirectUriHint": "将此地址注册为身份提供方客户端的重定向 URI。不完全一致时提供方会拒绝登录。",
-      "copyRedirectUri": "复制重定向 URI"
-    },
     "scim": {
       "title": "SCIM",
-      "description": "让身份提供方创建、更新和停用此工作区的账号，并通过其群组授予项目访问权限。",
+      "description": "让身份提供方将成员加入此工作区、将其移出，并通过其群组授予项目访问权限。",
       "saved": "SCIM 设置已保存",
       "provisioning": "账号预配",
-      "provisioningConfigured": "身份提供方会创建、更新和停用此工作区的账号。",
+      "provisioningConfigured": "身份提供方会将成员加入此工作区或将其移出。",
       "provisioningMissing": "请先生成令牌。",
       "token": "令牌",
       "noToken": "尚未生成令牌",

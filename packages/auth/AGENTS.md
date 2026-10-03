@@ -27,10 +27,10 @@ through this module — never inline a query on `app_setting` / `app_secret` els
 
 - `app_setting` key `auth` → `{ registration, requireEmailVerification, magicLink,
   emailPassword }`.
-- `app_secret` keys `auth.email` and `auth.google` → the mail provider and Google, set in
-  god mode; `workspace.<id>.oidc` and `workspace.<id>.scim` → a workspace's OIDC provider
-  and SCIM token, set by the workspace owner. All encrypted with `@repo/crypto`, each with
-  a `redacted` mirror for the settings UI. Secrets never leave the server.
+- `app_secret` keys `auth.email`, `auth.google` and `auth.oidc` → the mail provider, Google
+  and the OIDC provider, set in god mode; `workspace.<id>.scim` → a workspace's SCIM token,
+  set by the workspace owner. All encrypted with `@repo/crypto`, each with a `redacted`
+  mirror for the settings UI. Secrets never leave the server.
 
 The mail provider is read by the api and the worker as well, so its shape and reader
 live in `@repo/db` (`domains/instance-email.ts`); what is here is the write side god
@@ -97,11 +97,15 @@ own check of `emailAndPassword.requireEmailVerification`.
 ## Generic OIDC
 
 `genericOAuth({ config: [oidcOptions] })` adds one OIDC/OAuth2 provider, discovered from
-the well-known document the operator points it at. Every workspace stores its own
-(`app_secret` key `workspace.<id>.oidc`); sign-in uses the one of the instance workspace
-(`getSignInOidcConfig`). Choosing between the providers of several workspaces at sign-in is
-not built. It adds `/sign-in/oauth2` and `/oauth2/callback/:providerId`, and reuses the
+the well-known document the operator points it at in god mode (`app_secret` key
+`auth.oidc`). It adds `/sign-in/oauth2` and `/oauth2/callback/:providerId`, and reuses the
 `account` table, so it adds none of its own.
+
+A provider per workspace is not built on this one. A sign-in through it joins the account
+that already holds the address, which is safe only because the provider is the instance
+owner's: a workspace owner's provider could name any address. It needs the workspace to
+prove it owns the address's domain first, and is left to a hosted module, which plugs in
+its settings screen through `WorkspaceSsoSection` in the web app's `@/cloud` seam.
 
 `providerId` is the constant `OIDC_PROVIDER_ID` (`"oidc"`): it is what the `account` rows
 store, and better-auth materialises the provider list once at startup, so the config array
@@ -127,18 +131,12 @@ Like every other instance setting this is read per request, so it cannot be
 (a static array). The api refuses to turn it off while neither Google nor OIDC is usable,
 which is what stops an instance being left with no way in.
 
-## Deactivation and SCIM
+## SCIM
 
-Three more `additionalFields` on the user table, all written only over SCIM and all
-nullable, so every check is `active !== false` rather than `!active`:
-
-- `active` — the deprovisioning flag. `databaseHooks.session.create.before` refuses to open
-  a session for an inactive account, which covers every sign-in method at once; `apps/api`
-  refuses the sessions and API keys that were already open.
-- `scimExternalId` — the identity provider's own id, used to correlate an account it did
-  not choose the id for.
-- `scimWorkspaceId` — the workspace whose SCIM provisioning manages the account, set when
-  its identity provider creates or claims it.
+A workspace's identity provider decides who is in the workspace, not who has an account, so
+nothing here refuses a session for it: there is no deactivation flag on the user table, and
+what a provider says about a person is kept per workspace in `scim_user`, written by
+`apps/api`.
 
 `getScimSettings` / `rotateScimToken` / `verifyScimToken` hold the bearer token of each
 workspace that the SCIM endpoints in `apps/api` authenticate with. A token reads
@@ -210,6 +208,13 @@ A key the plugin will not accept makes it throw out of `auth.api.getSession` rat
 return no session. `getSessionFromHeaders` turns that back into "no session", so an expired
 key is answered with a 401 instead of a 500. Use it instead of `auth.api.getSession` where
 a request may carry a key.
+
+## MCP OAuth
+
+`mcp()` serves OAuth 2.1 to MCP clients and adds the `oauth_application`,
+`oauth_access_token` and `oauth_consent` tables. Dynamic registration takes `client_name` as
+optional (RFC 7591) while the table requires a name, so `hooks.before` names a client that
+sends none `MCP client`.
 
 ## OpenAPI reference
 

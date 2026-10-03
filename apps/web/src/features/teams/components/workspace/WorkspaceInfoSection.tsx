@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { WorkspaceBillingSection } from '@/cloud';
+import { WorkspaceBillingSection, WorkspaceSsoSection } from '@/cloud';
 import { useUpdateWorkspace, useWorkspaceQuery } from '@/services/workspaces.service';
 import SectionPageView from '@/components/common/page/SectionPageView';
 import SettingsCard from '@/components/common/page/SettingsCard';
@@ -62,6 +62,8 @@ export default function WorkspaceInfoSection({ workspaceId }: { workspaceId: num
             </div>
           </SettingsCard>
         </SettingsSection>
+
+        {workspace.role === 'owner' && <WorkspaceSsoSection workspaceId={workspaceId} />}
 
         <WorkspaceBillingSection workspaceId={workspaceId} />
       </div>

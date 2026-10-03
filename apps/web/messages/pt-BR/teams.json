@@ -9,6 +9,8 @@
     "submit": "Criar time"
   },
   "sections": {
+    "collapse": "Recolher seções",
+    "expand": "Expandir seções",
     "info": {
       "title": "Informações",
       "description": "O time e seu lugar nele."
@@ -541,6 +543,7 @@
   },
   "workspace": {
     "rail": "Workspaces",
+    "general": "Geral",
     "roles": {
       "owner": "Proprietário",
       "admin": "Administrador"
@@ -570,32 +573,12 @@
       "removeDescription": "A pessoa continua nas equipes, mas não pode gerenciar o workspace.",
       "removed": "{name} não é mais administrador"
     },
-    "sso": {
-      "title": "Single sign-on",
-      "description": "O provedor de identidade com o qual as pessoas entram.",
-      "saved": "Single sign-on salvo",
-      "oidc": "OpenID Connect",
-      "oidcConfigured": "Um endereço sem conta ganha uma; um endereço que já tem uma conta confirmada entra nela.",
-      "oidcMissing": "Adicione a URL de descoberta, o ID do cliente e o segredo primeiro.",
-      "discoveryUrl": "URL de descoberta",
-      "discoveryUrlHint": "O .well-known/openid-configuration do seu provedor. Os endpoints de autorização, token e userinfo são lidos dele.",
-      "clientId": "ID do cliente",
-      "clientSecret": "Segredo do cliente",
-      "oidcLabel": "Rótulo do botão",
-      "oidcLabelPlaceholder": "Entrar com Acme SSO",
-      "oidcLabelHint": "Nomeia seu provedor no botão de login. Deixe vazio para um rótulo genérico.",
-      "scopes": "Escopos",
-      "scopesHint": "Separados por espaços. openid é obrigatório; profile e email preenchem o nome e o endereço.",
-      "redirectUri": "URI de redirecionamento",
-      "redirectUriHint": "Registre isto como um URI de redirecionamento no cliente no seu provedor de identidade. O provedor recusa o login se não corresponder exatamente.",
-      "copyRedirectUri": "Copiar URI de redirecionamento"
-    },
     "scim": {
       "title": "SCIM",
-      "description": "Permita que um provedor de identidade crie, atualize e desative as contas deste workspace e conceda acesso a projetos por seus grupos.",
+      "description": "Permita que um provedor de identidade adicione pessoas a este workspace, remova-as e conceda acesso a projetos por seus grupos.",
       "saved": "Configurações SCIM salvas",
       "provisioning": "Provisionamento",
-      "provisioningConfigured": "Seu provedor de identidade cria, atualiza e desativa as contas deste workspace.",
+      "provisioningConfigured": "Seu provedor de identidade adiciona pessoas a este workspace e as remove.",
       "provisioningMissing": "Gere um token primeiro.",
       "token": "Token",
       "noToken": "Nenhum token gerado ainda",

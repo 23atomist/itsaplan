@@ -2,3 +2,4 @@
 // instance runs. The hosted build points the alias at its own module exporting the
 // same names, so a cloud-only screen is imported from here and nowhere else.
 export { default as WorkspaceBillingSection } from './WorkspaceBillingSection';
+export { default as WorkspaceSsoSection } from './WorkspaceSsoSection';

@@ -15,6 +15,7 @@ import {
   teamMember,
   teamRole,
   user,
+  workspaceManager,
 } from '@repo/db';
 import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { HttpError, iso, pgErrorCode } from '#shared/lib';
@@ -1003,4 +1004,89 @@ export async function leaveTeam(teamId: number, userId: string): Promise<void> {
     await assertLeavesNoProjectOwnerless(tx, teamId, userId, 'You');
     await dropTeamMembership(tx, teamId, userId);
   });
+}
+
+// Takes a person out of every team of the workspace, and with that out of all of its
+// projects: what the workspace's identity provider does when it deprovisions them. A
+// team or project they own alone passes to the workspace owner, so none is left with
+// nobody who can manage it.
+export async function dropWorkspaceMemberships(workspaceId: number, userId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const teams = await tx
+      .select({ id: team.id })
+      .from(team)
+      .innerJoin(teamMember, eq(teamMember.teamId, team.id))
+      .where(and(eq(team.workspaceId, workspaceId), eq(teamMember.userId, userId)))
+      .orderBy(team.id)
+      .for('update');
+    const [owner] = await tx
+      .select({ userId: workspaceManager.userId })
+      .from(workspaceManager)
+      .where(
+        and(eq(workspaceManager.workspaceId, workspaceId), eq(workspaceManager.role, 'owner')),
+      );
+    for (const { id: teamId } of teams) {
+      if (owner && owner.userId !== userId) {
+        await handOverSoleOwnership(tx, teamId, userId, owner.userId);
+      }
+      await dropTeamMembership(tx, teamId, userId);
+    }
+  });
+}
+
+// Makes the successor the owner of what the person owns alone in the team: the team
+// itself and any of its projects. A project membership stands on a team one, so the
+// successor joins the team first.
+async function handOverSoleOwnership(
+  tx: Transaction,
+  teamId: number,
+  userId: string,
+  successorId: string,
+): Promise<void> {
+  const owners = await tx
+    .select({ userId: teamMember.userId })
+    .from(teamMember)
+    .where(and(eq(teamMember.teamId, teamId), eq(teamMember.role, 'owner')));
+  const ownsTeamAlone = owners.length === 1 && owners[0]!.userId === userId;
+  const soleProjects = await tx
+    .select({ id: project.id })
+    .from(projectMember)
+    .innerJoin(project, eq(project.id, projectMember.projectId))
+    .where(
+      and(
+        eq(project.teamId, teamId),
+        eq(projectMember.userId, userId),
+        eq(projectMember.role, 'owner'),
+        sql`(select count(*) from ${projectMember} o where o.project_id = ${project.id} and o.role = 'owner') = 1`,
+      ),
+    );
+  if (!ownsTeamAlone && soleProjects.length === 0) return;
+
+  await tx
+    .insert(teamMember)
+    .values({ teamId, userId: successorId, role: ownsTeamAlone ? 'owner' : 'member' })
+    .onConflictDoNothing();
+  if (ownsTeamAlone) {
+    await tx
+      .update(teamMember)
+      .set({ role: 'owner' })
+      .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, successorId)));
+  }
+  if (soleProjects.length > 0) {
+    // Not a SCIM row any more: the next sync must not take the ownership back.
+    await tx
+      .insert(projectMember)
+      .values(
+        soleProjects.map(({ id }) => ({
+          projectId: id,
+          userId: successorId,
+          role: 'owner',
+          roleId: null,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [projectMember.projectId, projectMember.userId],
+        set: { role: 'owner', roleId: null, source: 'invite' },
+      });
+  }
 }

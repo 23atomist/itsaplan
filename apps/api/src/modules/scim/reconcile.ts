@@ -2,12 +2,14 @@ import {
   db,
   project,
   projectMember,
+  scimGroup,
   scimGroupMapping,
   scimGroupMember,
+  scimUser,
   teamMember,
   teamWorkspaceId,
 } from '@repo/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import { removeMember, setMembership, type MemberRole } from '#modules/members/service';
 import { listSeatHolderIds } from '#modules/teams/service';
 import { getLimits } from '#shared/limits';
@@ -33,6 +35,7 @@ export async function reconcileProjects(projectIds: number[]): Promise<void> {
 // Who the mappings say should be a member of this project. A user reachable
 // through two mappings resolves to the strongest: 'owner' beats 'member', and among
 // equals the lowest mapping id wins, so the result does not depend on row order.
+// A person the workspace's provider deactivated is granted nothing by its groups.
 async function desiredMembers(projectId: number): Promise<Map<string, Desired>> {
   const rows = await db
     .select({
@@ -42,7 +45,20 @@ async function desiredMembers(projectId: number): Promise<Map<string, Desired>> 
     })
     .from(scimGroupMapping)
     .innerJoin(scimGroupMember, eq(scimGroupMember.groupId, scimGroupMapping.groupId))
-    .where(eq(scimGroupMapping.projectId, projectId))
+    .innerJoin(scimGroup, eq(scimGroup.id, scimGroupMapping.groupId))
+    .leftJoin(
+      scimUser,
+      and(
+        eq(scimUser.workspaceId, scimGroup.workspaceId),
+        eq(scimUser.userId, scimGroupMember.userId),
+      ),
+    )
+    .where(
+      and(
+        eq(scimGroupMapping.projectId, projectId),
+        or(isNull(scimUser.active), eq(scimUser.active, true)),
+      ),
+    )
     .orderBy(scimGroupMapping.id);
 
   const desired = new Map<string, Desired>();

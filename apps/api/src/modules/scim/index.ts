@@ -14,10 +14,8 @@ import {
   memberIds,
   parseFilter,
   parsePatch,
-  readEmail,
   readAccountEmail,
   scimErrorBody,
-  splitName,
   toListResponse,
   toScimGroup,
   toScimUser,
@@ -63,6 +61,10 @@ function extractToken(authorization: string | undefined): string | null {
 // provisioning run over something harmless. The shapes are checked in resource.ts,
 // which raises SCIM errors rather than the planner's validation error.
 const anyBody = { body: t.Any() };
+
+// The name and address of the account. They are the person's own, not the workspace's,
+// so a provider that sends them on every sync gets them accepted and left as they are.
+const ACCOUNT_ATTRIBUTE = /^(username|displayname|name(\..+)?|emails(\[.*])?(\..+)?)$/;
 
 // A create or replace body, cast and checked. Guards the four spots that read
 // `doc.<attribute>` straight off the request body: without this, a request that
@@ -205,17 +207,14 @@ const scimHandlers = new Elysia({
   .put(
     '/Users/:id',
     async ({ workspaceId, params, body }) => {
-      const current = await requireUser(workspaceId, params.id);
       const doc = asDoc(body);
-      const email = readAccountEmail(doc);
       const updated = await updateScimUser(workspaceId, params.id, {
-        email,
-        name: joinName(doc.name as never, (doc.displayName as string) || current.name),
         active: doc.active === undefined ? true : asBoolean(doc.active),
         externalId: typeof doc.externalId === 'string' ? doc.externalId : null,
       });
+      const record = requireUpdated(updated, 'User', params.id);
       await syncEmbeddedGroups(workspaceId, params.id, groupDisplayNames(doc.groups));
-      return toScimUser(requireUpdated(updated, 'User', params.id));
+      return toScimUser(record);
     },
     {
       params: resourceParams,
@@ -228,9 +227,7 @@ const scimHandlers = new Elysia({
   .patch(
     '/Users/:id',
     async ({ workspaceId, params, body }) => {
-      const current = await requireUser(workspaceId, params.id);
-      const patch: { email?: string; name?: string; active?: boolean; externalId?: string | null } =
-        {};
+      const patch: { active?: boolean; externalId?: string | null } = {};
       for (const op of parsePatch(body)) {
         const path = op.path!.toLowerCase();
         if (op.op === 'remove') {
@@ -243,19 +240,8 @@ const scimHandlers = new Elysia({
           continue;
         }
         if (path === 'active') patch.active = asBoolean(op.value);
-        else if (path === 'username') patch.email = asString(op.value, 'userName');
         else if (path === 'externalid') patch.externalId = asString(op.value, 'externalId');
-        else if (path === 'displayname' || path === 'name.formatted') {
-          patch.name = asString(op.value, 'name');
-        } else if (path === 'name') {
-          patch.name = joinName(op.value as never, current.name);
-        } else if (path === 'name.givenname' || path === 'name.familyname') {
-          const parts = splitName(patch.name ?? current.name);
-          const key = path === 'name.givenname' ? 'givenName' : 'familyName';
-          patch.name = joinName({ ...parts, [key]: asString(op.value, 'name') }, current.name);
-        } else if (path.startsWith('emails')) {
-          patch.email = readEmail(op.value);
-        } else {
+        else if (!ACCOUNT_ATTRIBUTE.test(path)) {
           throw new ScimError(400, `Attribute '${op.path}' is not writable`, 'invalidPath');
         }
       }

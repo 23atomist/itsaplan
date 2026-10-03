@@ -1,32 +1,37 @@
 import {
   db,
   aiAgent,
-  projectMember,
   scimGroup,
+  scimGroupMapping,
   scimGroupMember,
+  scimUser,
   team,
   teamMember,
   user,
+  workspaceManager,
 } from '@repo/db';
-import { and, eq, exists, inArray, isNull, notExists, or, sql } from 'drizzle-orm';
+import { and, eq, exists, inArray, isNotNull, notExists, or, sql } from 'drizzle-orm';
 import { generateUsername } from '@repo/auth';
 import { iso } from '#shared/lib';
-import { deleteAccount } from '#shared/account-deletion';
-import { countOwners } from '#modules/members/service';
+import { dropWorkspaceMemberships } from '#modules/teams/service';
 import { ScimError, type ScimFilter, type ScimGroupRecord, type ScimUserRecord } from './resource';
 import { mappedProjectIds, reconcileProjects } from './reconcile';
 
 // Data access for the SCIM endpoints. Every call acts for the one workspace the
-// bearer token opened. The identity provider is the authority on who exists, so a
-// create here inserts the `user` row directly rather than going through
-// better-auth's sign-up — the same way an agent's bot user is written. That
-// deliberately skips the instance registration gate, which is what makes a closed
-// instance plus SSO a working combination.
+// bearer token opened. An account is one `user` row across the instance, and the
+// identity provider decides who has the workspace, not who has an account: what it
+// says about a person — its own id for them and whether they are active — is kept
+// per workspace in `scim_user`. Deactivating or deleting someone takes them out of
+// the workspace's teams; their name, address and sign-in stay as they are.
+//
+// A create for an address that has no account inserts the `user` row directly rather
+// than going through better-auth's sign-up — the same way an agent's bot user is
+// written. That deliberately skips the instance registration gate, which is what
+// makes a closed instance plus SSO a working combination.
 //
 // An AI agent's bot user is an account too, but it belongs to the project that
 // created it, not to the identity provider: `notAnAgent` keeps every one of them out
-// of /Users, so a sync cannot rename an agent or deactivate it (which would make the
-// api refuse the agent's own API key and stop it without a trace).
+// of /Users, so a sync cannot take an agent out of its team.
 
 // What each resource can be filtered on. Advertised by ServiceProviderConfig and
 // enforced by parseFilter, so the three never drift apart.
@@ -42,23 +47,26 @@ const notAnAgent = notExists(
     .where(eq(aiAgent.userId, user.id)),
 );
 
-// The accounts a workspace's provider sees: the ones it manages, and the people in
-// its teams whom no workspace's provider manages yet. A write claims the account for
-// the workspace, after which no other workspace's provider sees it.
+// The join of an account to what this workspace's provider says about it. Every user
+// query here left-joins it: a person in the workspace's teams the provider never
+// wrote has no row.
+function linkOf(workspaceId: number) {
+  return and(eq(scimUser.userId, user.id), eq(scimUser.workspaceId, workspaceId));
+}
+
+// The accounts a workspace's provider sees: the ones it wrote, and the people in the
+// workspace's teams.
 function inWorkspace(workspaceId: number) {
   return and(
     notAnAgent,
     or(
-      eq(user.scimWorkspaceId, workspaceId),
-      and(
-        isNull(user.scimWorkspaceId),
-        exists(
-          db
-            .select({ n: sql`1` })
-            .from(teamMember)
-            .innerJoin(team, eq(team.id, teamMember.teamId))
-            .where(and(eq(teamMember.userId, user.id), eq(team.workspaceId, workspaceId))),
-        ),
+      isNotNull(scimUser.userId),
+      exists(
+        db
+          .select({ n: sql`1` })
+          .from(teamMember)
+          .innerJoin(team, eq(team.id, teamMember.teamId))
+          .where(and(eq(teamMember.userId, user.id), eq(team.workspaceId, workspaceId))),
       ),
     ),
   );
@@ -68,7 +76,7 @@ function inWorkspace(workspaceId: number) {
 // the two paths do not agree on case: better-auth stores whatever case a sign-up or
 // an OIDC profile carried, while a SCIM `userName` typically arrives lowercased from
 // a directory. Matching case-sensitively would miss an account that predates the
-// sync and provision a duplicate instead of claiming it.
+// sync and provision a duplicate instead of linking it.
 function emailEq(email: string) {
   return eq(sql`lower(${user.email})`, email.trim().toLowerCase());
 }
@@ -78,7 +86,7 @@ interface UserRow {
   email: string;
   name: string;
   active: boolean | null;
-  scimExternalId: string | null;
+  externalId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,9 +96,9 @@ function toUserRecord(row: UserRow): ScimUserRecord {
     id: row.id,
     email: row.email,
     name: row.name,
-    // Nullable for accounts that predate the column, which are active.
+    // Null for a person the provider never wrote, who is active.
     active: row.active !== false,
-    externalId: row.scimExternalId,
+    externalId: row.externalId,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
@@ -100,8 +108,8 @@ const userColumns = {
   id: user.id,
   email: user.email,
   name: user.name,
-  active: user.active,
-  scimExternalId: user.scimExternalId,
+  active: scimUser.active,
+  externalId: scimUser.externalId,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 };
@@ -111,7 +119,7 @@ const userColumns = {
 function userWhere(workspaceId: number, filter: ScimFilter | null) {
   if (!filter) return inWorkspace(workspaceId);
   if (filter.attribute === 'externalid') {
-    return and(inWorkspace(workspaceId), eq(user.scimExternalId, filter.value));
+    return and(inWorkspace(workspaceId), eq(scimUser.externalId, filter.value));
   }
   return and(inWorkspace(workspaceId), emailEq(filter.value));
 }
@@ -125,6 +133,7 @@ export async function listScimUsers(
     db
       .select(userColumns)
       .from(user)
+      .leftJoin(scimUser, linkOf(workspaceId))
       .where(where)
       .orderBy(user.createdAt)
       .limit(options.count)
@@ -132,6 +141,7 @@ export async function listScimUsers(
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(user)
+      .leftJoin(scimUser, linkOf(workspaceId))
       .where(where),
   ]);
   return { records: rows.map(toUserRecord), total: totals[0]?.count ?? 0 };
@@ -141,8 +151,34 @@ export async function getScimUser(workspaceId: number, id: string): Promise<Scim
   const rows = await db
     .select(userColumns)
     .from(user)
+    .leftJoin(scimUser, linkOf(workspaceId))
     .where(and(eq(user.id, id), inWorkspace(workspaceId)));
   return rows[0] ? toUserRecord(rows[0]) : null;
+}
+
+// The role is what grants god mode, and nothing about the instance owner's standing is
+// the identity provider's to change.
+function assertNotGod(role: string | null, action: string): void {
+  if (role === 'god')
+    throw new ScimError(409, `An instance owner cannot be ${action} through SCIM`);
+}
+
+// The workspace owner runs its SCIM provisioning and receives what a deprovisioned
+// person owned alone, so the workspace's own provider cannot take it from them.
+async function assertNotWorkspaceOwner(workspaceId: number, userId: string): Promise<void> {
+  const [owner] = await db
+    .select({ userId: workspaceManager.userId })
+    .from(workspaceManager)
+    .where(
+      and(
+        eq(workspaceManager.workspaceId, workspaceId),
+        eq(workspaceManager.userId, userId),
+        eq(workspaceManager.role, 'owner'),
+      ),
+    );
+  if (owner) {
+    throw new ScimError(409, 'The workspace owner cannot be deprovisioned through SCIM');
+  }
 }
 
 export async function createScimUser(
@@ -150,115 +186,101 @@ export async function createScimUser(
   input: { email: string; name: string; active: boolean; externalId: string | null },
 ): Promise<ScimUserRecord> {
   const email = input.email.trim().toLowerCase();
-  const existing = await db
-    .select({
-      id: user.id,
-      role: user.role,
-      scimExternalId: user.scimExternalId,
-      scimWorkspaceId: user.scimWorkspaceId,
-    })
+  const [existing] = await db
+    .select({ id: user.id, role: user.role, externalId: scimUser.externalId })
     .from(user)
+    .leftJoin(scimUser, linkOf(workspaceId))
     .where(and(emailEq(email), notAnAgent));
-  if (existing[0]) {
-    // The role is what grants god mode, so linking this account into a sync would
-    // let the identity provider rename, reassign or deactivate the instance owner
-    // with no route back except SQL.
-    if (existing[0].role === 'god') {
-      throw new ScimError(409, 'An instance owner cannot be provisioned through SCIM');
-    }
-    // A second create for an address already linked to the provider is a retry,
-    // not a new person — Okta repeats a create after a timeout — and must not
-    // silently overwrite what the first one wrote, including the id the second
-    // request left out, with whatever the retry happens to carry. An account
-    // another workspace's provider manages is out of reach the same way.
-    const managedElsewhere =
-      existing[0].scimWorkspaceId !== null && existing[0].scimWorkspaceId !== workspaceId;
-    if (managedElsewhere || existing[0].scimExternalId) {
+  if (existing) {
+    assertNotGod(existing.role, 'provisioned');
+    // A second create for an address this provider already linked is a retry, not a
+    // new person — Okta repeats a create after a timeout — and must not silently
+    // overwrite what the first one wrote with whatever the retry happens to carry.
+    if (existing.externalId) {
       throw new ScimError(
         409,
         `A user with userName '${input.email}' already exists`,
         'uniqueness',
       );
     }
-    // Otherwise this address belongs to an account that predates the sync —
-    // created by a sign-up or an OIDC sign-in — so provisioning claims it instead
-    // of creating a second one for the same person. Its name and username are left
-    // as they are: both may already be the ones the person set for themselves, and
-    // the identity provider is only the authority on whether the account should
-    // exist and be active.
-    const linked = await db
-      .update(user)
-      .set({
-        active: input.active,
-        scimExternalId: input.externalId,
-        scimWorkspaceId: workspaceId,
-        updatedAt: new Date(),
-      })
-      .where(eq(user.id, existing[0].id))
-      .returning(userColumns);
-    return toUserRecord(linked[0]!);
+    if (!input.active) await assertNotWorkspaceOwner(workspaceId, existing.id);
   }
-  // The @mention handle, derived from the address the same way a sign-up derives it.
-  // The identity provider does not supply one.
-  const username = await generateUsername(email);
-  const [created] = await db
-    .insert(user)
-    .values({
-      id: crypto.randomUUID(),
-      email,
-      name: input.name,
-      emailVerified: true,
-      role: 'user',
-      active: input.active,
-      scimExternalId: input.externalId,
-      scimWorkspaceId: workspaceId,
-      username,
-    })
-    .returning(userColumns);
-  return toUserRecord(created!);
+
+  // An address with an account is that person: the provider links it rather than
+  // creating a second one, and leaves its name and username as the person set them.
+  const userId = await db.transaction(async (tx) => {
+    let id = existing?.id;
+    if (!id) {
+      const [created] = await tx
+        .insert(user)
+        .values({
+          id: crypto.randomUUID(),
+          email,
+          name: input.name,
+          emailVerified: true,
+          role: 'user',
+          // The @mention handle, derived from the address the same way a sign-up
+          // derives it. The identity provider does not supply one.
+          username: await generateUsername(email),
+        })
+        .returning({ id: user.id });
+      id = created!.id;
+    }
+    await tx
+      .insert(scimUser)
+      .values({ workspaceId, userId: id, externalId: input.externalId, active: input.active })
+      .onConflictDoUpdate({
+        target: [scimUser.workspaceId, scimUser.userId],
+        set: { externalId: input.externalId, active: input.active },
+      });
+    return id;
+  });
+  if (input.active) await reconcileProjects(await groupProjectIds(workspaceId, userId));
+  else await dropWorkspaceMemberships(workspaceId, userId);
+  return (await getScimUser(workspaceId, userId))!;
 }
 
+// Writes what the provider says about a person: its id for them and whether they
+// have the workspace. Their name and address are their own, so a PUT or PATCH that
+// carries them leaves them as they are.
 export async function updateScimUser(
   workspaceId: number,
   id: string,
-  patch: { email?: string; name?: string; active?: boolean; externalId?: string | null },
+  patch: { active?: boolean; externalId?: string | null },
 ): Promise<ScimUserRecord | null> {
-  const target = await db
-    .select({ role: user.role })
+  const [target] = await db
+    .select({ role: user.role, active: scimUser.active })
     .from(user)
+    .leftJoin(scimUser, linkOf(workspaceId))
     .where(and(eq(user.id, id), inWorkspace(workspaceId)));
-  // Same reason as the create guard above: nothing about this account is
-  // provider-owned, so PUT and PATCH — this function backs both — refuse it too.
-  if (target[0]?.role === 'god') {
-    throw new ScimError(409, 'An instance owner cannot be updated through SCIM');
-  }
-  const email = patch.email?.trim().toLowerCase();
-  if (email) {
-    const clash = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(and(emailEq(email), notAnAgent));
-    if (clash[0] && clash[0].id !== id) {
-      throw new ScimError(
-        409,
-        `A user with userName '${patch.email}' already exists`,
-        'uniqueness',
-      );
-    }
-  }
+  if (!target) return null;
+  assertNotGod(target.role, 'updated');
+  const wasActive = target.active !== false;
+  const active = patch.active ?? wasActive;
+  if (wasActive && !active) await assertNotWorkspaceOwner(workspaceId, id);
+
+  await db
+    .insert(scimUser)
+    .values({ workspaceId, userId: id, externalId: patch.externalId ?? null, active })
+    .onConflictDoUpdate({
+      target: [scimUser.workspaceId, scimUser.userId],
+      set: { active, ...(patch.externalId !== undefined ? { externalId: patch.externalId } : {}) },
+    });
+  if (wasActive && !active) await dropWorkspaceMemberships(workspaceId, id);
+  // Back in the workspace: the groups they are still in grant their projects again.
+  if (!wasActive && active) await reconcileProjects(await groupProjectIds(workspaceId, id));
+  return getScimUser(workspaceId, id);
+}
+
+// The projects the workspace's groups grant this person.
+async function groupProjectIds(workspaceId: number, userId: string): Promise<number[]> {
   const rows = await db
-    .update(user)
-    .set({
-      ...(email ? { email } : {}),
-      ...(patch.name !== undefined ? { name: patch.name } : {}),
-      ...(patch.active !== undefined ? { active: patch.active } : {}),
-      ...(patch.externalId !== undefined ? { scimExternalId: patch.externalId } : {}),
-      scimWorkspaceId: workspaceId,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(user.id, id), inWorkspace(workspaceId)))
-    .returning(userColumns);
-  return rows[0] ? toUserRecord(rows[0]) : null;
+    .select({ projectId: scimGroupMapping.projectId })
+    .from(scimGroupMapping)
+    .innerJoin(scimGroupMember, eq(scimGroupMember.groupId, scimGroupMapping.groupId))
+    .innerJoin(scimGroup, eq(scimGroup.id, scimGroupMapping.groupId))
+    .where(and(eq(scimGroup.workspaceId, workspaceId), eq(scimGroupMember.userId, userId)));
+  return rows.map((row) => row.projectId);
 }
 
 // Some identity providers embed group membership on the user instead of, or as well
@@ -305,42 +327,40 @@ export async function syncEmbeddedGroups(
   await reconcileProjects(projectIds);
 }
 
-// Removing the account for real, the way god mode does. Deprovisioning normally
-// arrives as `active: false` instead; DELETE stays a real delete so it does not
-// disagree with what the owner sees in god mode.
+// Unlinks a person from the provider and takes them out of the workspace: its teams,
+// its projects and its groups. The account stays.
 export async function deleteScimUser(workspaceId: number, id: string): Promise<void> {
-  const rows = await db
+  const [target] = await db
     .select({ role: user.role })
     .from(user)
+    .leftJoin(scimUser, linkOf(workspaceId))
     .where(and(eq(user.id, id), inWorkspace(workspaceId)));
-  const row = rows[0];
   // An agent's bot user and an account outside the workspace are not part of its
   // SCIM user surface at all, so they answer the same way an unknown id does.
-  if (!row) throw new ScimError(404, `User '${id}' not found`);
-  if (row.role === 'god') throw new ScimError(409, 'An instance owner cannot be deleted');
+  if (!target) throw new ScimError(404, `User '${id}' not found`);
+  assertNotGod(target.role, 'deleted');
+  await assertNotWorkspaceOwner(workspaceId, id);
 
-  if ((await soleOwnedProjects(id)).length > 0) {
-    throw new ScimError(
-      409,
-      'This user is the only owner of a project. Deactivate them instead, or hand the ' +
-        'project over to another owner first.',
-    );
-  }
-  await deleteAccount(id);
-}
-
-// The projects this user owns alone. Deleting them would leave those projects with
-// nobody who can manage their members.
-async function soleOwnedProjects(userId: string): Promise<number[]> {
-  const owned = await db
-    .select({ projectId: projectMember.projectId })
-    .from(projectMember)
-    .where(and(eq(projectMember.userId, userId), eq(projectMember.role, 'owner')));
-  const sole: number[] = [];
-  for (const row of owned) {
-    if ((await countOwners(row.projectId)) <= 1) sole.push(row.projectId);
-  }
-  return sole;
+  await dropWorkspaceMemberships(workspaceId, id);
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(scimGroupMember)
+      .where(
+        and(
+          eq(scimGroupMember.userId, id),
+          inArray(
+            scimGroupMember.groupId,
+            tx
+              .select({ id: scimGroup.id })
+              .from(scimGroup)
+              .where(eq(scimGroup.workspaceId, workspaceId)),
+          ),
+        ),
+      );
+    await tx
+      .delete(scimUser)
+      .where(and(eq(scimUser.workspaceId, workspaceId), eq(scimUser.userId, id)));
+  });
 }
 
 // ── Groups ────────────────────────────────────────────────────────────────────
@@ -360,6 +380,7 @@ async function assertKnownMembers(workspaceId: number, ids: string[]): Promise<v
   const known = await db
     .select({ id: user.id })
     .from(user)
+    .leftJoin(scimUser, linkOf(workspaceId))
     .where(and(inArray(user.id, ids), inWorkspace(workspaceId)));
   const knownIds = new Set(known.map((row) => row.id));
   const missing = ids.filter((id) => !knownIds.has(id));

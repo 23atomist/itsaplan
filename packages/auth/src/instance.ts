@@ -23,16 +23,15 @@ import { hasEmailProvider, type SmtpConfig } from '@repo/mailer';
 //
 // Non-secret settings are one jsonb blob in app_setting under the 'auth' key; the
 // credentials are encrypted in app_secret, each with a `redacted` mirror the settings
-// UI can read without decrypting. The instance's own are under 'auth.email' and
-// 'auth.google'; OIDC and SCIM belong to a workspace and are stored under
-// 'workspace.<id>.oidc' and 'workspace.<id>.scim'. The mail config is also read by
-// the api and the worker, so its shape and reader live in @repo/db; what stays here
-// is the write side.
+// UI can read without decrypting. The instance's own are under 'auth.email',
+// 'auth.google' and 'auth.oidc', set in god mode; SCIM belongs to a workspace and is
+// stored under 'workspace.<id>.scim'. The mail config is also read by the api and the
+// worker, so its shape and reader live in @repo/db; what stays here is the write side.
 
 const AUTH_SETTING_KEY = 'auth';
 const GOOGLE_SECRET_KEY = 'auth.google';
+const OIDC_SECRET_KEY = 'auth.oidc';
 
-const oidcSecretKey = (workspaceId: number) => `workspace.${workspaceId}.oidc`;
 const scimSecretKey = (workspaceId: number) => `workspace.${workspaceId}.scim`;
 
 // Who may create an account.
@@ -254,10 +253,10 @@ export async function setGoogleSettings(patch: InstanceGooglePatch): Promise<Ins
 
 // ── Generic OIDC / OAuth2 ─────────────────────────────────────────────────────
 
-// One OIDC provider per workspace, discovered from its well-known document. The
+// One OIDC provider per instance, discovered from its well-known document. The
 // stored, decrypted credentials; read by the provider in ./index.ts on every
 // request, never returned over HTTP.
-export interface WorkspaceOidcConfig {
+export interface InstanceOidcConfig {
   enabled: boolean;
   // Text of the sign-in button. Free-form because it names the operator's own
   // identity provider, so the sign-in screen renders it as given rather than
@@ -274,7 +273,7 @@ export interface WorkspaceOidcConfig {
 
 // The config as returned to the client: the secret replaced by a boolean telling
 // whether a value is stored.
-export interface WorkspaceOidcDto {
+export interface InstanceOidcDto {
   enabled: boolean;
   label: string;
   discoveryUrl: string;
@@ -286,7 +285,7 @@ export interface WorkspaceOidcDto {
 
 // A partial write. The secret keeps its stored value when omitted or sent empty (a
 // masked field the user did not edit).
-export interface WorkspaceOidcPatch {
+export interface InstanceOidcPatch {
   enabled?: boolean;
   label?: string;
   discoveryUrl?: string;
@@ -296,7 +295,7 @@ export interface WorkspaceOidcPatch {
   pkce?: boolean;
 }
 
-function defaultOidcConfig(): WorkspaceOidcConfig {
+function defaultOidcConfig(): InstanceOidcConfig {
   return {
     enabled: false,
     label: '',
@@ -308,7 +307,7 @@ function defaultOidcConfig(): WorkspaceOidcConfig {
   };
 }
 
-function toOidcDto(config: WorkspaceOidcConfig): WorkspaceOidcDto {
+function toOidcDto(config: InstanceOidcConfig): InstanceOidcDto {
   return {
     enabled: config.enabled,
     label: config.label,
@@ -320,25 +319,19 @@ function toOidcDto(config: WorkspaceOidcConfig): WorkspaceOidcDto {
   };
 }
 
-export async function getOidcConfig(workspaceId: number): Promise<WorkspaceOidcConfig> {
-  const stored = await readSecret<WorkspaceOidcConfig>(oidcSecretKey(workspaceId));
+export async function getOidcConfig(): Promise<InstanceOidcConfig> {
+  const stored = await readSecret<InstanceOidcConfig>(OIDC_SECRET_KEY);
   // Merge over the default so a config written before a field was added stays valid.
   return { ...defaultOidcConfig(), ...(stored ?? {}) };
 }
 
-// The provider the sign-in screen offers: the one of the instance workspace. Choosing
-// between the providers of several workspaces at sign-in is not built.
-export async function getSignInOidcConfig(): Promise<WorkspaceOidcConfig> {
-  return getOidcConfig(await instanceWorkspaceId(db));
-}
-
-export async function getOidcSettings(workspaceId: number): Promise<WorkspaceOidcDto> {
-  return toOidcDto(await getOidcConfig(workspaceId));
+export async function getOidcSettings(): Promise<InstanceOidcDto> {
+  return toOidcDto(await getOidcConfig());
 }
 
 // Whether OIDC sign-in can run right now. The provider is always mounted, so this is
-// what both the settings and the public sign-in screen ask before offering it.
-export function isOidcUsable(config: WorkspaceOidcConfig): boolean {
+// what both the god settings and the public sign-in screen ask before offering it.
+export function isOidcUsable(config: InstanceOidcConfig): boolean {
   return (
     config.enabled &&
     config.discoveryUrl.length > 0 &&
@@ -348,22 +341,19 @@ export function isOidcUsable(config: WorkspaceOidcConfig): boolean {
 }
 
 export async function hasConfiguredOidc(): Promise<boolean> {
-  return isOidcUsable(await getSignInOidcConfig());
+  return isOidcUsable(await getOidcConfig());
 }
 
 // The button text the sign-in screen shows, or an empty string when OIDC is not
 // usable. Read by the public /auth-config.
 export async function getOidcLabel(): Promise<string> {
-  const config = await getSignInOidcConfig();
+  const config = await getOidcConfig();
   return isOidcUsable(config) ? config.label : '';
 }
 
-export async function setOidcSettings(
-  workspaceId: number,
-  patch: WorkspaceOidcPatch,
-): Promise<WorkspaceOidcDto> {
-  const current = await getOidcConfig(workspaceId);
-  const next: WorkspaceOidcConfig = {
+export async function setOidcSettings(patch: InstanceOidcPatch): Promise<InstanceOidcDto> {
+  const current = await getOidcConfig();
+  const next: InstanceOidcConfig = {
     enabled: patch.enabled ?? current.enabled,
     label: patch.label ?? current.label,
     discoveryUrl: patch.discoveryUrl ?? current.discoveryUrl,
@@ -373,7 +363,7 @@ export async function setOidcSettings(
     pkce: patch.pkce ?? current.pkce,
   };
   const redacted = toOidcDto(next);
-  await writeSecret(oidcSecretKey(workspaceId), next, redacted);
+  await writeSecret(OIDC_SECRET_KEY, next, redacted);
   return redacted;
 }
 

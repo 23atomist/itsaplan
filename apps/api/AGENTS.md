@@ -205,21 +205,28 @@ Filtering is `<attribute> eq "<value>"` only, over the attributes each resource 
 `service.ts`; that is what Okta, Entra and Authentik send, and `ServiceProviderConfig`
 advertises exactly that. A create inserts the `user` row directly, the way `createAgent`
 does, which deliberately skips the registration gate — with SCIM on, the identity provider
-decides who exists, and that is what makes `registration: 'closed'` plus SSO work.
+brings people in, and that is what makes `registration: 'closed'` plus SSO work.
 
-A workspace's provider sees the accounts it manages (`user.scimWorkspaceId` is the
-workspace) and the people in its teams whom no provider manages yet (`inWorkspace` in
-`service.ts`). A create or update claims the account for the workspace, after which no
-other workspace's provider sees it. Groups belong to a workspace (`scim_group.workspace_id`),
-their names are unique within it, and their members must be accounts it sees. The group
-mappings and the settings are routes of `modules/workspaces/`, open to the workspace owner
-only.
+An account is one `user` row across the instance, and a workspace's provider decides who is
+in the workspace, not who has an account. What it says about a person — its own id for them
+and whether they are active — is a `scim_user` row per (workspace, user), so the same person
+can be linked by several workspaces. The provider sees the accounts it linked and the people
+in the workspace's teams (`inWorkspace` in `service.ts`). A create for an address that has an
+account links it; a name or address sent on a create, PUT or PATCH is accepted and the
+account keeps its own. Groups belong to a workspace (`scim_group.workspace_id`), their names
+are unique within it, and their members must be accounts it sees. The group mappings and the
+settings are routes of `modules/workspaces/`, open to the workspace owner only.
 
-`createScimUser`/`updateScimUser` refuse a `god`-role account outright (409): the role is
-what grants god mode, and nothing about the instance owner's account is provider-owned. A
-create for an address already linked (`user.scimExternalId` set) is refused the same way —
-it is a retry, not a new person, and must not overwrite the link a first create wrote — and
-so is one for an address another workspace's provider manages.
+Deactivation (`active: false`) and DELETE take the person out of every team of the
+workspace through `dropWorkspaceMemberships` in `teams/service.ts`, invite memberships
+included, and a team or project they owned alone passes to the workspace owner. Neither
+touches the account or its sessions. A deactivated person stays linked, so the provider can
+turn them back on, and `reconcile.ts` grants them nothing through the groups until then.
+The `god`-role account and the workspace owner are refused (409): the first because nothing
+about the instance owner is provider-owned, the second because the owner is who receives
+what a deprovisioned person owned alone. A create for an address the provider already linked
+with an `externalId` is refused the same way — it is a retry, not a new person, and must not
+overwrite the link the first create wrote.
 
 A group member removal arrives in two shapes: `path: 'members'` with the id(s) to drop in
 `value`, or RFC 7644 §3.5.2.2's path filter, `path: 'members[value eq "<id>"]'`, which Okta

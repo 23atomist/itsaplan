@@ -9,6 +9,8 @@
     "submit": "Crear equipo"
   },
   "sections": {
+    "collapse": "Contraer secciones",
+    "expand": "Expandir secciones",
     "info": {
       "title": "Información",
       "description": "El equipo y tu lugar en él."
@@ -541,6 +543,7 @@
   },
   "workspace": {
     "rail": "Espacios de trabajo",
+    "general": "General",
     "roles": {
       "owner": "Propietario",
       "admin": "Administrador"
@@ -570,32 +573,12 @@
       "removeDescription": "Seguirá en sus equipos, pero no podrá gestionar el espacio de trabajo.",
       "removed": "{name} ya no es administrador"
     },
-    "sso": {
-      "title": "Inicio de sesión único",
-      "description": "El proveedor de identidades con el que inician sesión las personas.",
-      "saved": "Inicio de sesión único guardado",
-      "oidc": "OpenID Connect",
-      "oidcConfigured": "Una dirección sin cuenta recibe una; una dirección que ya tiene una cuenta confirmada inicia sesión en ella.",
-      "oidcMissing": "Añade primero la URL de descubrimiento, el ID de cliente y el secreto.",
-      "discoveryUrl": "URL de descubrimiento",
-      "discoveryUrlHint": "El .well-known/openid-configuration de tu proveedor. Los endpoints de autorización, token y userinfo se leen de él.",
-      "clientId": "ID de cliente",
-      "clientSecret": "Secreto del cliente",
-      "oidcLabel": "Etiqueta del botón",
-      "oidcLabelPlaceholder": "Iniciar sesión con Acme SSO",
-      "oidcLabelHint": "Nombra a tu proveedor en el botón de inicio de sesión. Déjalo vacío para una etiqueta genérica.",
-      "scopes": "Ámbitos",
-      "scopesHint": "Separados por espacios. openid es obligatoria; profile y email rellenan el nombre y la dirección.",
-      "redirectUri": "URI de redirección",
-      "redirectUriHint": "Regístrala como una URI de redirección en el cliente de tu proveedor de identidades. El proveedor rechaza el inicio de sesión si no coincide exactamente.",
-      "copyRedirectUri": "Copiar la URI de redirección"
-    },
     "scim": {
       "title": "SCIM",
-      "description": "Permite que un proveedor de identidades cree, actualice y desactive las cuentas de este espacio de trabajo, y conceda acceso a proyectos a través de sus grupos.",
+      "description": "Permite que un proveedor de identidades añada personas a este espacio de trabajo, las quite y conceda acceso a proyectos a través de sus grupos.",
       "saved": "Los ajustes de SCIM se han guardado",
       "provisioning": "Preparación",
-      "provisioningConfigured": "Tu proveedor de identidades crea, actualiza y desactiva las cuentas de este espacio de trabajo.",
+      "provisioningConfigured": "Tu proveedor de identidades añade personas a este espacio de trabajo y las quita.",
       "provisioningMissing": "Genera primero un token.",
       "token": "Token",
       "noToken": "Todavía no se ha generado un token",

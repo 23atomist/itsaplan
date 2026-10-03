@@ -104,6 +104,29 @@ export const GoogleSettingsBody = t.Object({
   clientSecret: t.Optional(t.String()),
 });
 
+export const OidcSettingsResponse = t.Object({
+  enabled: t.Boolean(),
+  label: t.String(),
+  discoveryUrl: t.String(),
+  clientId: t.String(),
+  hasClientSecret: t.Boolean(),
+  scopes: t.Array(t.String()),
+  pkce: t.Boolean(),
+  // The value to register with the identity provider. Derived from the API origin,
+  // so the UI shows it rather than asking the owner to assemble it.
+  redirectUri: t.String(),
+});
+
+export const OidcSettingsBody = t.Object({
+  enabled: t.Optional(t.Boolean()),
+  label: t.Optional(t.String({ maxLength: 60 })),
+  discoveryUrl: t.Optional(t.String({ maxLength: 2048 })),
+  clientId: t.Optional(t.String({ maxLength: 512 })),
+  clientSecret: t.Optional(t.String({ maxLength: 512 })),
+  scopes: t.Optional(t.Array(t.String({ minLength: 1, maxLength: 64 }), { maxItems: 32 })),
+  pkce: t.Optional(t.Boolean()),
+});
+
 export const StorageSettingsBody = t.Object({
   maxAttachmentMb: t.Optional(t.Integer({ minimum: 1, maximum: 10240 })),
   maxAvatarMb: t.Optional(t.Integer({ minimum: 1, maximum: 1024 })),

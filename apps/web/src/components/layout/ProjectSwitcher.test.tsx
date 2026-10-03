@@ -319,6 +319,8 @@ describe('ProjectSwitcher', () => {
     await render();
     await key(element('[data-slot="popover-content"]'), 'Escape');
     assert.equal(document.querySelector('[data-slot="popover-content"]'), null);
+    // Radix hands focus back to the trigger in a timeout once the content unmounts.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
     assert.equal(document.activeElement, element('[data-slot="popover-trigger"]'));
     await key(element('[data-slot="sidebar"]'), 'Escape');
     assert.equal(document.querySelector('[data-mobile="true"]'), null);

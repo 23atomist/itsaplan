@@ -257,6 +257,17 @@
     "clientSecret": "Secret client",
     "redirectUri": "URI de redirection",
     "redirectUriHint": "Enregistrez-la sur le client OAuth dans la console Google Cloud. Google refuse la connexion si elle ne correspond pas exactement.",
-    "copyRedirectUri": "Copier l'URI de redirection"
+    "copyRedirectUri": "Copier l'URI de redirection",
+    "oidc": "OpenID Connect",
+    "oidcConfigured": "Une adresse sans compte en obtient un ; une adresse qui a déjà un compte confirmé s'y connecte.",
+    "oidcMissing": "Ajoutez d'abord l'URL de découverte, l'identifiant et le secret client.",
+    "discoveryUrl": "URL de découverte",
+    "discoveryUrlHint": "Le .well-known/openid-configuration de votre fournisseur. Les points d'accès d'autorisation, de token et de userinfo y sont lus.",
+    "oidcLabel": "Libellé du bouton",
+    "oidcLabelPlaceholder": "Se connecter avec Acme SSO",
+    "oidcLabelHint": "Nomme votre fournisseur sur le bouton de connexion. Laissez vide pour un libellé générique.",
+    "scopes": "Scopes",
+    "scopesHint": "Séparés par des espaces. openid est obligatoire ; profile et email renseignent le nom et l'adresse.",
+    "oidcRedirectUriHint": "Enregistrez-la comme URI de redirection sur le client de votre fournisseur d'identité. Le fournisseur refuse la connexion si elle ne correspond pas exactement."
   }
 }

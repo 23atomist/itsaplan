@@ -14,7 +14,7 @@ import {
   hasPendingInvite,
   getGoogleConfig,
   isGoogleUsable,
-  getSignInOidcConfig,
+  getOidcConfig,
   isOidcUsable,
 } from './instance';
 import { sendAuthEmail } from './mail';
@@ -98,7 +98,7 @@ async function refreshGoogleOptions(): Promise<boolean> {
   }
 }
 
-// The generic OIDC provider. Sign-in offers one, so its id is a constant: it is what
+// The generic OIDC provider. One per instance, so its id is a constant: it is what
 // the `account` rows store, and better-auth materialises the provider list once at
 // startup — the config array can neither grow nor be re-keyed afterwards. As with
 // Google, the plugin keeps this object by reference and reads its fields on every
@@ -116,8 +116,7 @@ const oidcOptions: GenericOAuthConfig = {
 };
 
 // The exact value that has to be registered as a redirect URI with the identity
-// provider. The workspace SSO settings show it so the owner can copy it instead of
-// assembling it.
+// provider. god mode shows it so the owner can copy it instead of assembling it.
 export const OIDC_REDIRECT_URI = `${baseURL}/api/auth/oauth2/callback/${OIDC_PROVIDER_ID}`;
 
 // Loads the stored credentials into that object and reports whether OIDC sign-in can
@@ -125,7 +124,7 @@ export const OIDC_REDIRECT_URI = `${baseURL}/api/auth/oauth2/callback/${OIDC_PRO
 // stale secret.
 async function refreshOidcOptions(): Promise<boolean> {
   try {
-    const config = await getSignInOidcConfig();
+    const config = await getOidcConfig();
     oidcOptions.clientId = config.clientId;
     oidcOptions.clientSecret = config.clientSecret;
     oidcOptions.discoveryUrl = config.discoveryUrl;
@@ -361,29 +360,6 @@ export const auth = betterAuth({
         defaultValue: 'user',
         input: false,
       },
-      // Deprovisioning flag, written only over SCIM. Nullable, so every check is
-      // `active !== false` — an account that predates the column has no value.
-      active: {
-        type: 'boolean',
-        required: false,
-        defaultValue: true,
-        input: false,
-      },
-      // The identity provider's own id for this account, used by SCIM to correlate
-      // a user it did not create the id for.
-      scimExternalId: {
-        type: 'string',
-        required: false,
-        input: false,
-      },
-      // The workspace whose SCIM provisioning manages this account, set when its
-      // identity provider creates or claims it. No other workspace's provider can
-      // see or change the account.
-      scimWorkspaceId: {
-        type: 'number',
-        required: false,
-        input: false,
-      },
     },
   },
 
@@ -402,6 +378,16 @@ export const auth = betterAuth({
           code: 'PASSWORD_AUTH_DISABLED',
           message: 'Password sign-in is disabled on this instance',
         });
+      }
+
+      // RFC 7591 makes `client_name` optional, and the MCP plugin stores it as the
+      // client's name, which its table requires.
+      if (ctx.path === '/mcp/register') {
+        const body = ctx.body as { client_name?: string } | undefined;
+        if (body && !body.client_name) {
+          return { context: { body: { ...body, client_name: 'MCP client' } } };
+        }
+        return;
       }
 
       if (ctx.path === '/sign-up/email') {
@@ -530,25 +516,6 @@ export const auth = betterAuth({
         },
       },
     },
-    session: {
-      create: {
-        // Every sign-in method ends here, so one check covers password, magic link,
-        // passkey, Google and OIDC. Deactivation arrives over SCIM; apps/api refuses
-        // the sessions that are already open.
-        before: async (session) => {
-          const rows = await db
-            .select({ active: schema.user.active })
-            .from(schema.user)
-            .where(eq(schema.user.id, session.userId));
-          if (rows[0]?.active === false) {
-            throw new APIError('FORBIDDEN', {
-              code: 'ACCOUNT_DEACTIVATED',
-              message: 'This account is deactivated',
-            });
-          }
-        },
-      },
-    },
   },
 
   plugins: [
@@ -606,7 +573,7 @@ export const auth = betterAuth({
         });
       },
     }),
-    // A single generic OIDC/OAuth2 provider, configured in the instance workspace and
+    // A single generic OIDC/OAuth2 provider, configured by the instance owner and
     // discovered from its well-known document. Adds /sign-in/oauth2 and
     // /oauth2/callback/:providerId; it reuses the `account` table, so it adds none.
     // The config array is materialised at startup — see oidcOptions above for why
@@ -729,9 +696,9 @@ export type {
   InstanceGoogleDto,
   InstanceGooglePatch,
   InstanceGoogleConfig,
-  WorkspaceOidcDto,
-  WorkspaceOidcPatch,
-  WorkspaceOidcConfig,
+  InstanceOidcDto,
+  InstanceOidcPatch,
+  InstanceOidcConfig,
   WorkspaceScimDto,
 } from './instance';
 

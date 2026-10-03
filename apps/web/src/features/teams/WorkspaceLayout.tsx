@@ -4,12 +4,10 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { manageTeamsPath } from '@/utils/paths';
 import { useWorkspacesQuery } from '@/services/workspaces.service';
-import TeamsPageRail from './components/TeamsPageRail';
-import WorkspaceSectionNav from './components/workspace/WorkspaceSectionNav';
 import { useRouteWorkspaceId } from './hooks/useRouteWorkspaceId';
 
-// One workspace the caller manages, as the second rail of the teams page and the
-// section open beside it. A workspace they do not manage falls back to the teams.
+// One workspace the caller manages, as the section open beside the rails. A workspace
+// they do not manage falls back to the teams.
 export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const workspaceId = useRouteWorkspaceId();
@@ -20,12 +18,5 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
     if (data && !workspace) router.replace(manageTeamsPath());
   }, [data, workspace, router]);
 
-  return (
-    <>
-      <TeamsPageRail className="lg:w-60">
-        {workspace && <WorkspaceSectionNav workspace={workspace} />}
-      </TeamsPageRail>
-      <div className="flex min-w-0 flex-1 flex-col">{workspace && children}</div>
-    </>
-  );
+  return <div className="flex min-w-0 flex-1 flex-col">{workspace && children}</div>;
 }

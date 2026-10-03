@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import {
   GOOGLE_REDIRECT_URI,
+  OIDC_REDIRECT_URI,
   getAuthSettings,
   setAuthSettings,
   getEmailSettings,
@@ -9,6 +10,8 @@ import {
   getGoogleSettings,
   setGoogleSettings,
   hasConfiguredGoogle,
+  getOidcSettings,
+  setOidcSettings,
   hasConfiguredOidc,
 } from '@repo/auth';
 import { hasConfiguredEmailProvider, getStorageSettings } from '@repo/db';
@@ -21,7 +24,6 @@ import { paginate } from '#shared/pagination';
 import { noContent } from '#shared/http';
 import { deleteProject } from '#modules/projects/service';
 import {
-  assertUsableSignInMethod,
   deleteInstanceUser,
   getInstanceProject,
   getInstanceTeam,
@@ -49,6 +51,8 @@ import {
   InstanceTeamResponse,
   InstanceUserDetailResponse,
   InstanceUserPageResponse,
+  OidcSettingsBody,
+  OidcSettingsResponse,
   StorageSettingsBody,
   TelegramSettingsBody,
   TelegramSettingsResponse,
@@ -78,9 +82,8 @@ import {
 
 // God mode: instance-wide administration, open only to the "god" user (the first
 // registered account). It covers how people may register, the mail provider that
-// sends authentication email, and the Google credentials. Single sign-on through OIDC
-// and SCIM provisioning belong to a workspace and are set in its settings. Invites
-// are per team (team_invite), managed in the team panel and in the project's Members
+// sends authentication email, and the OAuth credentials. SCIM provisioning belongs to
+// a workspace and is set in its settings. Invites are per team (team_invite), managed in the team panel and in the project's Members
 // section — there is nothing instance-level to add here.
 //
 // The settings themselves are owned by @repo/auth, which reads them at sign-up and
@@ -91,6 +94,16 @@ import {
 // be turned off while one can.
 async function hasSsoProvider(): Promise<boolean> {
   return (await hasConfiguredOidc()) || (await hasConfiguredGoogle());
+}
+
+async function assertUsableSignInMethod(
+  nextProviderUsable: boolean,
+  otherProviderUsable: boolean,
+): Promise<void> {
+  const auth = await getAuthSettings();
+  if (!auth.emailPassword && !nextProviderUsable && !otherProviderUsable) {
+    throw new HttpError(400, 'Enable password sign-in or another single sign-on provider first');
+  }
 }
 
 export const godRoutes = new Elysia({ name: 'god', detail: { tags: ['God'] } })
@@ -237,6 +250,49 @@ export const godRoutes = new Elysia({ name: 'god', detail: { tags: ['God'] } })
       detail: {
         summary: 'Update Google sign-in settings',
         description: 'Update the Google OAuth credentials and whether Google sign-in is offered.',
+      },
+    },
+  )
+
+  .get(
+    '/god/oidc-settings',
+    async () => ({ ...(await getOidcSettings()), redirectUri: OIDC_REDIRECT_URI }),
+    {
+      response: { 200: OidcSettingsResponse, ...errors(401, 403) },
+      detail: {
+        summary: 'Get OIDC sign-in settings',
+        description: 'Get the generic OIDC/OAuth2 provider settings (the client secret redacted).',
+      },
+    },
+  )
+
+  .put(
+    '/god/oidc-settings',
+    async ({ body }) => {
+      const current = await getOidcSettings();
+      const enabled = body.enabled ?? current.enabled;
+      const discoveryUrl = body.discoveryUrl ?? current.discoveryUrl;
+      const clientId = body.clientId ?? current.clientId;
+      const hasClientSecret = (body.clientSecret?.length ?? 0) > 0 || current.hasClientSecret;
+      // Turning it on without credentials would only offer a button that fails at
+      // the provider, the same rule the Google settings apply.
+      if (enabled && (discoveryUrl.length === 0 || clientId.length === 0 || !hasClientSecret)) {
+        throw new HttpError(400, 'Add the discovery URL, client ID and secret first');
+      }
+      await assertUsableSignInMethod(
+        enabled && discoveryUrl.length > 0 && clientId.length > 0 && hasClientSecret,
+        await hasConfiguredGoogle(),
+      );
+      const next = await setOidcSettings(body);
+      return { ...next, redirectUri: OIDC_REDIRECT_URI };
+    },
+    {
+      body: OidcSettingsBody,
+      response: { 200: OidcSettingsResponse, ...errors(400, 401, 403) },
+      detail: {
+        summary: 'Update OIDC sign-in settings',
+        description:
+          'Update the generic OIDC/OAuth2 credentials and whether the provider is offered.',
       },
     },
   )

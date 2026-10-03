@@ -9,6 +9,8 @@
     "submit": "Create team"
   },
   "sections": {
+    "collapse": "Collapse sections",
+    "expand": "Expand sections",
     "info": {
       "title": "Info",
       "description": "The team and your place in it."
@@ -541,6 +543,7 @@
   },
   "workspace": {
     "rail": "Workspaces",
+    "general": "General",
     "roles": {
       "owner": "Owner",
       "admin": "Admin"
@@ -570,32 +573,12 @@
       "removeDescription": "They stay in their teams but can't manage the workspace.",
       "removed": "{name} is no longer an admin"
     },
-    "sso": {
-      "title": "Single sign-on",
-      "description": "The identity provider people sign in with.",
-      "saved": "Single sign-on saved",
-      "oidc": "OpenID Connect",
-      "oidcConfigured": "An address without an account gets one; an address that already has a confirmed account signs into it.",
-      "oidcMissing": "Add the discovery URL, client ID and secret first.",
-      "discoveryUrl": "Discovery URL",
-      "discoveryUrlHint": "Your provider's .well-known/openid-configuration. The authorization, token and userinfo endpoints are read from it.",
-      "clientId": "Client ID",
-      "clientSecret": "Client secret",
-      "oidcLabel": "Button label",
-      "oidcLabelPlaceholder": "Sign in with Acme SSO",
-      "oidcLabelHint": "Names your provider on the sign-in button. Leave it empty for a generic label.",
-      "scopes": "Scopes",
-      "scopesHint": "Separated by spaces. openid is required; profile and email fill in the name and address.",
-      "redirectUri": "Redirect URI",
-      "redirectUriHint": "Register this as a redirect URI on the client at your identity provider. The provider refuses the sign-in if it does not match exactly.",
-      "copyRedirectUri": "Copy redirect URI"
-    },
     "scim": {
       "title": "SCIM",
-      "description": "Let an identity provider create, update and deactivate the accounts of this workspace, and grant project access through its groups.",
+      "description": "Let an identity provider add people to this workspace, remove them, and grant project access through its groups.",
       "saved": "SCIM settings saved",
       "provisioning": "Provisioning",
-      "provisioningConfigured": "Your identity provider creates, updates and deactivates the accounts of this workspace.",
+      "provisioningConfigured": "Your identity provider adds people to this workspace and removes them.",
       "provisioningMissing": "Generate a token first.",
       "token": "Token",
       "noToken": "No token generated yet",

@@ -1,21 +1,11 @@
 import { Elysia, t } from 'elysia';
-import {
-  OIDC_REDIRECT_URI,
-  getOidcSettings,
-  getScimSettings,
-  hasConfiguredGoogle,
-  rotateScimToken,
-  setOidcSettings,
-  setScimSettings,
-} from '@repo/auth';
-import { db, instanceWorkspaceId } from '@repo/db';
+import { getScimSettings, rotateScimToken, setScimSettings } from '@repo/auth';
 import { requireUser } from '#shared/access';
 import { authContext } from '#shared/auth-context';
 import { guards } from '#shared/guards';
 import { noContent } from '#shared/http';
 import { HttpError } from '#shared/lib';
 import { errors } from '#shared/responses';
-import { assertUsableSignInMethod } from '#modules/god/service';
 import { SCIM_BASE_URL } from '#modules/scim/resource';
 import {
   ScimGroupMappingsBody,
@@ -23,8 +13,6 @@ import {
   ScimSettingsBody,
   ScimSettingsResponse,
   ScimTokenResponse,
-  SsoSettingsBody,
-  SsoSettingsResponse,
   WorkspaceCandidateListResponse,
   WorkspaceListResponse,
   WorkspaceManagerListResponse,
@@ -53,9 +41,8 @@ import {
 } from './scim';
 
 // A workspace owns teams. Only its owner and admins manage it; everyone else sees it
-// through the teams they are in. Single sign-on and SCIM provisioning are the
-// owner's alone: whoever sets the identity provider can sign in as any account it
-// vouches for.
+// through the teams they are in. SCIM provisioning is the owner's alone: the identity
+// provider decides who has access to the workspace.
 export const workspaceRoutes = new Elysia({ name: 'workspaces', detail: { tags: ['Workspaces'] } })
   .use(authContext)
   .use(guards)
@@ -149,60 +136,6 @@ export const workspaceRoutes = new Elysia({ name: 'workspaces', detail: { tags: 
       detail: {
         summary: 'Remove a workspace admin',
         description: 'Take the admin standing from a person. The owner cannot be removed.',
-      },
-    },
-  )
-
-  .get(
-    '/workspaces/:workspaceId/sso',
-    async ({ standing }) => ({
-      ...(await getOidcSettings(standing.workspaceId)),
-      redirectUri: OIDC_REDIRECT_URI,
-    }),
-    {
-      workspaceOwner: true,
-      params: workspaceParams,
-      response: { 200: SsoSettingsResponse, ...errors(401, 403, 404) },
-      detail: {
-        summary: 'Get single sign-on settings',
-        description: "The workspace's OIDC provider (the client secret redacted). Owner only.",
-      },
-    },
-  )
-
-  .patch(
-    '/workspaces/:workspaceId/sso',
-    async ({ standing, body }) => {
-      const current = await getOidcSettings(standing.workspaceId);
-      const enabled = body.enabled ?? current.enabled;
-      const discoveryUrl = body.discoveryUrl ?? current.discoveryUrl;
-      const clientId = body.clientId ?? current.clientId;
-      const hasClientSecret = (body.clientSecret?.length ?? 0) > 0 || current.hasClientSecret;
-      // Turning it on without credentials would only offer a button that fails at
-      // the provider, the same rule the Google settings apply.
-      if (enabled && (discoveryUrl.length === 0 || clientId.length === 0 || !hasClientSecret)) {
-        throw new HttpError(400, 'Add the discovery URL, client ID and secret first');
-      }
-      // The sign-in screen offers the provider of the instance workspace only.
-      if (standing.workspaceId === (await instanceWorkspaceId(db))) {
-        await assertUsableSignInMethod(
-          enabled && discoveryUrl.length > 0 && clientId.length > 0 && hasClientSecret,
-          await hasConfiguredGoogle(),
-        );
-      }
-      const next = await setOidcSettings(standing.workspaceId, body);
-      return { ...next, redirectUri: OIDC_REDIRECT_URI };
-    },
-    {
-      workspaceOwner: true,
-      params: workspaceParams,
-      body: SsoSettingsBody,
-      response: { 200: SsoSettingsResponse, ...errors(400, 401, 403, 404) },
-      detail: {
-        summary: 'Update single sign-on settings',
-        description:
-          "Update the workspace's OIDC credentials and whether the provider is offered. " +
-          'Owner only.',
       },
     },
   )

@@ -257,6 +257,17 @@
     "clientSecret": "客户端密钥",
     "redirectUri": "重定向 URI",
     "redirectUriHint": "请在 Google Cloud 控制台的 OAuth 客户端中添加此地址。地址不完全匹配时，Google 会拒绝登录。",
-    "copyRedirectUri": "复制重定向 URI"
+    "copyRedirectUri": "复制重定向 URI",
+    "oidc": "OpenID Connect",
+    "oidcConfigured": "没有账号的邮箱会自动创建账号；已有已确认账号的邮箱将登录该账号。",
+    "oidcMissing": "请先填写发现地址、客户端 ID 和密钥。",
+    "discoveryUrl": "发现地址",
+    "discoveryUrlHint": "身份提供方的 .well-known/openid-configuration 地址，授权、令牌和用户信息端点都从中读取。",
+    "oidcLabel": "按钮文字",
+    "oidcLabelPlaceholder": "使用 Acme SSO 登录",
+    "oidcLabelHint": "在登录按钮上标明你的提供方。留空则使用通用文字。",
+    "scopes": "权限范围",
+    "scopesHint": "以空格分隔。openid 为必需；profile 和 email 用于填充姓名和邮箱。",
+    "oidcRedirectUriHint": "将此地址注册为身份提供方客户端的重定向 URI。不完全一致时提供方会拒绝登录。"
   }
 }

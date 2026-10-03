@@ -1,6 +1,8 @@
 // SCIM 2.0 provisioning tables. An identity provider pushes users and groups to
-// /scim/v2 in the API; users land on the `user` table, groups land here.
+// /scim/v2 in the API; an account is one `user` row across the instance, and what a
+// workspace's provider knows about it lands here, as do its groups.
 import {
+  boolean,
   check,
   index,
   integer,
@@ -15,6 +17,30 @@ import {
 import { sql } from 'drizzle-orm';
 import { user } from './auth';
 import { project, teamRole, workspace } from './app';
+
+// An account as the identity provider of one workspace sees it. The provider decides
+// who has the workspace, not who has an account: `active` false means the person was
+// taken out of the workspace's teams and its groups grant them nothing, and the account
+// itself is untouched. Every workspace's provider keeps its own row for the same person.
+export const scimUser = pgTable(
+  'scim_user',
+  {
+    workspaceId: integer('workspace_id')
+      .notNull()
+      .references(() => workspace.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // The provider's own id for the person, sent as `externalId`.
+    externalId: text('external_id'),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.userId] }),
+    index('scim_user_user_idx').on(t.userId),
+  ],
+);
 
 // A group as the identity provider of one workspace sees it. Written only over SCIM:
 // the group list and its members are the provider's, and the workspace settings show

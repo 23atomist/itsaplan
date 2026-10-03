@@ -32,8 +32,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { getAuthSettings } from '@repo/auth';
-import { HttpError, iso } from '#shared/lib';
+import { iso } from '#shared/lib';
 import { deleteAccount } from '#shared/account-deletion';
 import {
   defaultMemberPermissions,
@@ -806,17 +805,4 @@ export async function verifyInstanceUserEmail(userId: string): Promise<InstanceU
     .returning({ id: user.id });
   if (updated.length === 0) return null;
   return getInstanceUser(userId);
-}
-
-// Refuses a change that would leave the sign-in screen with no way in: password
-// sign-in off and no single sign-on provider usable. `nextProviderUsable` is the
-// provider being changed, as it will be; `otherProviderUsable` is the other one.
-export async function assertUsableSignInMethod(
-  nextProviderUsable: boolean,
-  otherProviderUsable: boolean,
-): Promise<void> {
-  const auth = await getAuthSettings();
-  if (!auth.emailPassword && !nextProviderUsable && !otherProviderUsable) {
-    throw new HttpError(400, 'Enable password sign-in or another single sign-on provider first');
-  }
 }

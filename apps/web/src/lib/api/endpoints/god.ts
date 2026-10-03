@@ -90,6 +90,30 @@ export interface InstanceGoogleSettingsPatch {
   clientSecret?: string;
 }
 
+// The instance's generic OIDC/OAuth2 provider. The client secret is never returned,
+// only a `hasClientSecret` flag. redirectUri is derived from the API origin and has
+// to be registered with the identity provider.
+export interface InstanceOidcSettings {
+  enabled: boolean;
+  label: string;
+  discoveryUrl: string;
+  clientId: string;
+  hasClientSecret: boolean;
+  scopes: string[];
+  pkce: boolean;
+  redirectUri: string;
+}
+
+export interface InstanceOidcSettingsPatch {
+  enabled?: boolean;
+  label?: string;
+  discoveryUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  scopes?: string[];
+  pkce?: boolean;
+}
+
 // The instance Telegram bot: the one bot users link their accounts through, and the
 // default sender for Telegram notifications. `botUsername` is resolved from Telegram
 // when the token is saved.
@@ -249,6 +273,14 @@ export const getInstanceGoogleSettings = () =>
 
 export const updateInstanceGoogleSettings = (patch: InstanceGoogleSettingsPatch) =>
   request<InstanceGoogleSettings>('/god/google-settings', {
+    method: 'PUT',
+    body: JSON.stringify(patch),
+  });
+
+export const getInstanceOidcSettings = () => request<InstanceOidcSettings>('/god/oidc-settings');
+
+export const updateInstanceOidcSettings = (patch: InstanceOidcSettingsPatch) =>
+  request<InstanceOidcSettings>('/god/oidc-settings', {
     method: 'PUT',
     body: JSON.stringify(patch),
   });

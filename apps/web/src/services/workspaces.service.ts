@@ -1,11 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  type WorkspaceSsoSettingsPatch,
   addWorkspaceAdmin,
   createWorkspaceScimToken,
   getWorkspace,
   getWorkspaceScim,
-  getWorkspaceSso,
   listWorkspaceManagerCandidates,
   listWorkspaceManagers,
   listWorkspaceProjectOptions,
@@ -15,7 +13,6 @@ import {
   setWorkspaceScimGroupMappings,
   updateWorkspace,
   updateWorkspaceScim,
-  updateWorkspaceSso,
 } from '@/lib/api/endpoints/workspaces';
 import { qk } from '@/services/queryKeys';
 
@@ -71,27 +68,6 @@ export function useAddWorkspaceAdmin(workspaceId: number) {
 
 export function useRemoveWorkspaceAdmin(workspaceId: number) {
   return useManagerMutation(workspaceId, (userId) => removeWorkspaceAdmin(workspaceId, userId));
-}
-
-export function useWorkspaceSsoQuery(workspaceId: number) {
-  return useQuery({
-    queryKey: qk.workspaceSso(workspaceId),
-    queryFn: () => getWorkspaceSso(workspaceId),
-  });
-}
-
-export function useUpdateWorkspaceSso(workspaceId: number) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (patch: WorkspaceSsoSettingsPatch) => updateWorkspaceSso(workspaceId, patch),
-    onSuccess: (data) => {
-      qc.setQueryData(qk.workspaceSso(workspaceId), data);
-      // The provider decides whether password sign-in may be turned off, and what the
-      // sign-in screen offers.
-      void qc.invalidateQueries({ queryKey: qk.instanceAuthSettings });
-      void qc.invalidateQueries({ queryKey: qk.authConfig });
-    },
-  });
 }
 
 // SCIM provisioning: the token an identity provider authenticates with, and what the

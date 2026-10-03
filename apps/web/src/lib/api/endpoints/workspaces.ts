@@ -55,30 +55,6 @@ export const addWorkspaceAdmin = (workspaceId: number, userId: string) =>
 export const removeWorkspaceAdmin = (workspaceId: number, userId: string) =>
   request<void>(`/workspaces/${workspaceId}/managers/${userId}`, { method: 'DELETE' });
 
-// The workspace's OIDC provider. The client secret is never returned, only a
-// `hasClientSecret` flag. redirectUri is derived from the API origin and has to be
-// registered with the identity provider.
-export interface WorkspaceSsoSettings {
-  enabled: boolean;
-  label: string;
-  discoveryUrl: string;
-  clientId: string;
-  hasClientSecret: boolean;
-  scopes: string[];
-  pkce: boolean;
-  redirectUri: string;
-}
-
-export interface WorkspaceSsoSettingsPatch {
-  enabled?: boolean;
-  label?: string;
-  discoveryUrl?: string;
-  clientId?: string;
-  clientSecret?: string;
-  scopes?: string[];
-  pkce?: boolean;
-}
-
 // SCIM provisioning. The token is never returned, only its prefix; a new one is
 // generated with createWorkspaceScimToken and shown once.
 export interface WorkspaceScimSettings {
@@ -114,15 +90,6 @@ export interface WorkspaceProjectOption {
   name: string;
   roles: { id: number; name: string }[];
 }
-
-export const getWorkspaceSso = (workspaceId: number) =>
-  request<WorkspaceSsoSettings>(`/workspaces/${workspaceId}/sso`);
-
-export const updateWorkspaceSso = (workspaceId: number, patch: WorkspaceSsoSettingsPatch) =>
-  request<WorkspaceSsoSettings>(`/workspaces/${workspaceId}/sso`, {
-    method: 'PATCH',
-    body: JSON.stringify(patch),
-  });
 
 export const getWorkspaceScim = (workspaceId: number) =>
   request<WorkspaceScimSettings>(`/workspaces/${workspaceId}/scim`);

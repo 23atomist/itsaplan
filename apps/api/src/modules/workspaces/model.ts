@@ -42,35 +42,12 @@ export const WorkspaceManagerListResponse = t.Array(t.Object({ ...person, role: 
 
 export const WorkspaceCandidateListResponse = t.Array(t.Object(person));
 
-export const SsoSettingsResponse = t.Object({
-  enabled: t.Boolean(),
-  label: t.String(),
-  discoveryUrl: t.String(),
-  clientId: t.String(),
-  hasClientSecret: t.Boolean(),
-  scopes: t.Array(t.String()),
-  pkce: t.Boolean(),
-  // The value to register with the identity provider. Derived from the API origin,
-  // so the UI shows it rather than asking the owner to assemble it.
-  redirectUri: t.String(),
-});
-
-export const SsoSettingsBody = t.Object({
-  enabled: t.Optional(t.Boolean()),
-  label: t.Optional(t.String({ maxLength: 60 })),
-  discoveryUrl: t.Optional(t.String({ maxLength: 2048 })),
-  clientId: t.Optional(t.String({ maxLength: 512 })),
-  clientSecret: t.Optional(t.String({ maxLength: 512 })),
-  scopes: t.Optional(t.Array(t.String({ minLength: 1, maxLength: 64 }), { maxItems: 32 })),
-  pkce: t.Optional(t.Boolean()),
-});
-
 export const ScimSettingsResponse = t.Object({
   enabled: t.Boolean(),
   hasToken: t.Boolean(),
   tokenPrefix: t.String(),
-  // Where to point the identity provider. Derived from the API origin, like the
-  // OIDC redirect URI.
+  // Where to point the identity provider. Derived from the API origin, so the UI
+  // shows it rather than asking the owner to assemble it.
   baseUrl: t.String(),
 });
 

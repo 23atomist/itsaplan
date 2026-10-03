@@ -257,6 +257,17 @@
     "clientSecret": "Client secret",
     "redirectUri": "Redirect URI",
     "redirectUriHint": "Зарегистрируйте его для OAuth-клиента в Google Cloud console. Google отклонит вход, если он не совпадает точно.",
-    "copyRedirectUri": "Скопировать redirect URI"
+    "copyRedirectUri": "Скопировать redirect URI",
+    "oidc": "OpenID Connect",
+    "oidcConfigured": "Адрес без учётной записи получает её; адрес с подтверждённой учётной записью входит в неё.",
+    "oidcMissing": "Сначала укажите адрес discovery, идентификатор клиента и секрет.",
+    "discoveryUrl": "Адрес discovery",
+    "discoveryUrlHint": "Адрес .well-known/openid-configuration вашего поставщика. Из него читаются конечные точки авторизации, токена и userinfo.",
+    "oidcLabel": "Надпись на кнопке",
+    "oidcLabelPlaceholder": "Войти через Acme SSO",
+    "oidcLabelHint": "Называет вашего поставщика на кнопке входа. Оставьте пустым для общей надписи.",
+    "scopes": "Scopes",
+    "scopesHint": "Через пробел. openid обязателен; profile и email заполняют имя и адрес.",
+    "oidcRedirectUriHint": "Укажите этот адрес как redirect URI у клиента вашего поставщика удостоверений. При несовпадении поставщик отклонит вход."
   }
 }

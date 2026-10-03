@@ -38,11 +38,9 @@ passkey and cookie settings, telemetry opt-out, and worker tuning.
 
 Any provider with an OpenID Connect discovery document works: Keycloak, Authentik, KanIDM,
 GitLab, Forgejo, Okta, Entra. The credentials go into the database, not into `.env`, so
-nothing here needs a restart. Single sign-on is a setting of the workspace, and only its
-owner — the first account on the instance — can change it.
+nothing here needs a restart.
 
-1. Open the workspace settings (the gear next to the workspace name in the project picker),
-   go to **Single sign-on** and copy the redirect URI it shows
+1. In god mode, open **Integrations → Auth provider** and copy the redirect URI it shows
    (`<API_URL>/api/auth/oauth2/callback/oidc`).
 2. Create a confidential client at your provider with that redirect URI.
 3. Paste the discovery URL (`.../.well-known/openid-configuration`), the client ID and the
@@ -68,7 +66,7 @@ instance cannot be left with no way in.
 
 ## Provisioning with SCIM
 
-An identity provider can create, update and deactivate accounts over SCIM 2.0, and grant
+An identity provider can add people to a workspace and remove them over SCIM 2.0, and grant
 project access through its groups. Provisioning is a setting of the workspace, and only its
 owner can change it.
 
@@ -78,13 +76,19 @@ owner can change it.
    (`<API_URL>/scim/v2`), authenticating with `Authorization: Bearer <token>`.
 3. Push users, and groups if you use them.
 
-The provider sees the accounts it created or claimed and the people in the workspace's
-teams; an account someone registered for themselves is claimed by the first create for its
-address. Deactivating someone at the provider (`active: false`) ends their sessions and refuses
-their API keys; reactivating restores them with their projects intact. The instance owner's
-own account is outside SCIM's reach — a provisioning run can neither change nor deactivate
-it, and a repeated create for an address it already provisioned answers "already exists"
-rather than overwriting the link back to the provider.
+An account belongs to the person, not to the workspace: one person can be in the teams of
+several workspaces, and each workspace's provider only decides whether they are in its own.
+The provider sees the people it created or linked and the people in the workspace's teams. A
+create for an address that already has an account links that account instead of making a
+second one; a name or address the provider sends is accepted and left as the account has it.
+
+Deactivating someone at the provider (`active: false`) or deleting them takes them out of
+every team and project of the workspace, including the ones they joined through an invite. A
+team or project they were the only owner of passes to the workspace owner. The account, its
+sign-in and the person's other workspaces are not touched. Reactivating gives back the
+projects their groups grant; memberships from invites do not come back. The instance owner and
+the workspace owner are outside SCIM's reach, and a repeated create for an address the
+provider already linked answers "already exists" rather than overwriting the link.
 
 A pushed group grants nothing until you say what it is for: on the same page, open a group
 and add the projects its members should join, and the role they join on. A project belongs

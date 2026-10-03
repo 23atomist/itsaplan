@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Info, KeyRound, ShieldCheck, UsersRound } from 'lucide-react';
+import { Info, ShieldCheck, UsersRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { WorkspaceSummary } from '@/lib/api/endpoints/workspaces';
 import { workspacePath } from '@/utils/paths';
@@ -14,7 +14,7 @@ export default function WorkspaceSectionNav({ workspace }: { workspace: Workspac
   const detail = useWorkspaceQuery(workspace.id).data;
 
   const sections: SectionNavItem[] = [
-    { id: 'info', label: t('info.title'), icon: Info, href: workspacePath(workspace.id) },
+    { id: 'info', label: t('general'), icon: Info, href: workspacePath(workspace.id) },
     {
       id: 'managers',
       label: t('managers.title'),
@@ -24,12 +24,6 @@ export default function WorkspaceSectionNav({ workspace }: { workspace: Workspac
     },
     ...(workspace.role === 'owner'
       ? [
-          {
-            id: 'sso',
-            label: t('sso.title'),
-            icon: KeyRound,
-            href: workspacePath(workspace.id, 'sso'),
-          },
           {
             id: 'scim',
             label: t('scim.title'),
@@ -44,7 +38,7 @@ export default function WorkspaceSectionNav({ workspace }: { workspace: Workspac
   return (
     <div className="space-y-2">
       <h2 className="truncate px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {workspace.name}
+        {t('info.title')}
       </h2>
       <SectionNav sections={sections} activeId={activeId} label={workspace.name} />
     </div>
