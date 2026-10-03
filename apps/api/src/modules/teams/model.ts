@@ -27,7 +27,17 @@ const teamSlug = t.String({
     'starting with a letter, 2 to 40 characters.',
 });
 
-export const createTeamBody = t.Object({ name: teamName, slug: teamSlug });
+export const createTeamBody = t.Object({
+  name: teamName,
+  slug: teamSlug,
+  workspaceId: t.Optional(
+    t.Integer({
+      minimum: 1,
+      description:
+        'The workspace that holds the team. A self-hosted instance has one, which is the default.',
+    }),
+  ),
+});
 
 // A team made before slugs were required has none, and takes no change until one is set.
 export const updateTeamBody = t.Partial(t.Object({ name: teamName, slug: teamSlug }));

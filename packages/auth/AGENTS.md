@@ -104,8 +104,8 @@ the well-known document the operator points it at in god mode (`app_secret` key
 A provider per workspace is not built on this one. A sign-in through it joins the account
 that already holds the address, which is safe only because the provider is the instance
 owner's: a workspace owner's provider could name any address. It needs the workspace to
-prove it owns the address's domain first, and is left to a hosted module, which plugs in
-its settings screen through `WorkspaceSsoSection` in the web app's `@/cloud` seam.
+prove it owns the address's domain first, and is left to a hosted module, which adds its
+settings section through `useWorkspaceSections` in the web app's `@/cloud` seam.
 
 `providerId` is the constant `OIDC_PROVIDER_ID` (`"oidc"`): it is what the `account` rows
 store, and better-auth materialises the provider list once at startup, so the config array

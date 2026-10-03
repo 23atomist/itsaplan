@@ -1,10 +1,11 @@
-import { describe, expect, it, beforeEach } from 'bun:test';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 import { db, teamMember } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { app } from '#tests/helpers/app';
 import { resetDb } from '#tests/helpers/db';
 import { signUpTestUser } from '#tests/helpers/auth';
 import { addUser, createAgentUser, joinProject, type Actor } from '#modules/god/__tests__/helpers';
+import { setScimEmailPolicy } from '../../email-policy';
 import { patchOps, scimUserBody, setupOtherWorkspace, setupScim } from '../helpers';
 
 async function memberIdsOf(owner: Actor, projectKey: string) {
@@ -18,6 +19,7 @@ async function teamsOf(actor: Actor) {
 
 describe('SCIM users', () => {
   beforeEach(resetDb);
+  afterEach(() => setScimEmailPolicy());
 
   describe('POST /scim/v2/Users', () => {
     it('provisions an account and returns it as a SCIM user', async () => {
@@ -37,6 +39,18 @@ describe('SCIM users', () => {
         meta: { resourceType: 'User' },
       });
       expect(res.data!.id).toBeTruthy();
+    });
+
+    it('refuses an address the installed policy does not allow', async () => {
+      const { scim } = await setupScim();
+      setScimEmailPolicy(async (_workspaceId, email) => email.endsWith('@acme.test'));
+
+      const refused = await scim.scim.v2.Users.post(scimUserBody({ userName: 'ada@example.com' }));
+      const accepted = await scim.scim.v2.Users.post(scimUserBody({ userName: 'ada@acme.test' }));
+
+      expect(refused.status).toBe(400);
+      expect(refused.error?.value).toMatchObject({ scimType: 'invalidValue' });
+      expect(accepted.status).toBe(201);
     });
 
     it('puts the provisioned account in no team, so it takes no seat', async () => {

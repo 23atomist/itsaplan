@@ -33,6 +33,12 @@ export async function requireWorkspaceManager(
   return { workspaceId, role, userId: current.id };
 }
 
+export async function assertWorkspaceOwner(workspaceId: number, userId: string): Promise<void> {
+  if ((await getWorkspaceRole(workspaceId, userId)) !== 'owner') {
+    throw new HttpError(403, 'Only the workspace owner can do this');
+  }
+}
+
 // The workspaces a person sees: those they manage and those holding a team of theirs.
 export async function listWorkspaces(userId: string) {
   const rows = await db

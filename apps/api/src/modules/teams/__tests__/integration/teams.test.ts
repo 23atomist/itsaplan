@@ -163,9 +163,9 @@ describe('teams', () => {
     });
 
     it("lists only the caller's own teams", async () => {
+      const owner = await signUpClient();
       const { api } = await signUpClient();
-      const other = await signUpClient();
-      await other.api.teams.post({ name: 'Design', slug: 'design' });
+      expect((await owner.api.teams.post({ name: 'Design', slug: 'design' })).status).toBe(201);
 
       const list = await api.teams.get();
       expect(list.data?.map((t) => t.name)).not.toContain('Design');
@@ -212,9 +212,9 @@ describe('teams', () => {
     });
 
     it('refuses one more team than the workspace limits allow', async () => {
-      await signUpClient();
       const { api } = await signUpClient({ team: false });
       // The other account's team already fills the workspace.
+      await signUpClient();
       setLimits({ maxTeams: 1 });
 
       const created = await api.teams.post({ name: 'Design', slug: 'design' });

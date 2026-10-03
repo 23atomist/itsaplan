@@ -207,7 +207,7 @@ export const listTeamProjectMembers = (
     `/teams/${teamId}/projects/${projectId}/members${memberListQuery(params)}`,
   );
 
-export const createTeam = (input: { name: string; slug: string }) =>
+export const createTeam = (input: { name: string; slug: string; workspaceId: number }) =>
   request<Team>('/teams', { method: 'POST', body: JSON.stringify(input) });
 
 export const updateTeam = (teamId: number, input: { name?: string; slug?: string }) =>

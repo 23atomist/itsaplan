@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { SquareKanban, Users } from 'lucide-react';
 import { useProjectsQuery } from '@/services/projects.service';
 import { useTeamsQuery } from '@/services/teams.service';
+import { useWorkspacesQuery } from '@/services/workspaces.service';
 import { useAccountPreferencesQuery } from '@/services/preferences.service';
 import { startPagePath, projectPath } from '@/utils/paths';
 import NewProjectModal from '@/components/layout/NewProjectModal';
@@ -17,13 +18,14 @@ import StartEmpty from '@/components/layout/StartEmpty';
 // first visible favorite or project, on the user's preferred start page. Waits for both
 // the project list and the preferences before deciding so it does not flash the
 // wrong destination. With no projects at all, an account that owns or manages a team
-// is offered to create the first one there, and any other to create its own team — a
-// plain member is also told who adds them to the team's projects.
+// is offered to create the first one there. The owner of a workspace is offered to create
+// a team in it; any other account is told who adds them.
 export default function Home() {
   const t = useTranslations('shell');
   const tCommon = useTranslations('common');
   const router = useRouter();
   const { data: teams } = useTeamsQuery();
+  const { data: workspaces } = useWorkspacesQuery();
   const { data: projects } = useProjectsQuery();
   const { data: prefs, isPending: prefsPending } = useAccountPreferencesQuery();
   const [creating, setCreating] = useState(false);
@@ -42,17 +44,22 @@ export default function Home() {
   }
 
   const managedTeam = teams?.find((one) => one.role !== 'member');
+  const ownedWorkspace = workspaces?.find((one) => one.role === 'owner');
 
-  if (teams && !managedTeam && projects?.length === 0) {
+  if (teams && workspaces && !managedTeam && projects?.length === 0) {
+    let hint = t('noProjectAccessHint');
+    if (teams.length === 0) hint = ownedWorkspace ? t('noTeamsHint') : t('noTeamsMemberHint');
     return (
       <StartEmpty
         icon={<Users />}
         title={teams.length === 0 ? t('noTeamsTitle') : t('noProjectsTitle')}
-        hint={teams.length === 0 ? t('noTeamsHint') : t('noProjectAccessHint')}
-        action={t('createTeam')}
+        hint={hint}
+        action={ownedWorkspace && t('createTeam')}
         onAction={() => setCreating(true)}
       >
-        {creating && <NewTeamModal onClose={() => setCreating(false)} />}
+        {creating && ownedWorkspace && (
+          <NewTeamModal workspaceId={ownedWorkspace.id} onClose={() => setCreating(false)} />
+        )}
       </StartEmpty>
     );
   }

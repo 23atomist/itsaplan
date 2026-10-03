@@ -10,8 +10,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 
-// A full-screen empty state with one action, for the start page before the account
-// has a team or a project.
+// A full-screen empty state for the start page before the account has a team or a project.
 export default function StartEmpty({
   icon,
   title,
@@ -23,7 +22,7 @@ export default function StartEmpty({
   icon: ReactNode;
   title: string;
   hint: string;
-  action: string;
+  action?: string;
   onAction: () => void;
   children: ReactNode;
 }) {
@@ -35,12 +34,14 @@ export default function StartEmpty({
           <EmptyTitle>{title}</EmptyTitle>
           <EmptyDescription>{hint}</EmptyDescription>
         </EmptyHeader>
-        <EmptyContent>
-          <Button onClick={onAction}>
-            <Plus />
-            {action}
-          </Button>
-        </EmptyContent>
+        {action && (
+          <EmptyContent>
+            <Button onClick={onAction}>
+              <Plus />
+              {action}
+            </Button>
+          </EmptyContent>
+        )}
       </Empty>
       {children}
     </div>

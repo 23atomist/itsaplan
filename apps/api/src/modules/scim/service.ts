@@ -15,6 +15,7 @@ import { generateUsername } from '@repo/auth';
 import { iso } from '#shared/lib';
 import { dropWorkspaceMemberships } from '#modules/teams/service';
 import { ScimError, type ScimFilter, type ScimGroupRecord, type ScimUserRecord } from './resource';
+import { isScimEmailAllowed } from './email-policy';
 import { mappedProjectIds, reconcileProjects } from './reconcile';
 
 // Data access for the SCIM endpoints. Every call acts for the one workspace the
@@ -186,6 +187,13 @@ export async function createScimUser(
   input: { email: string; name: string; active: boolean; externalId: string | null },
 ): Promise<ScimUserRecord> {
   const email = input.email.trim().toLowerCase();
+  if (!(await isScimEmailAllowed(workspaceId, email))) {
+    throw new ScimError(
+      400,
+      `The address '${input.email}' is not in a domain of this workspace`,
+      'invalidValue',
+    );
+  }
   const [existing] = await db
     .select({ id: user.id, role: user.role, externalId: scimUser.externalId })
     .from(user)

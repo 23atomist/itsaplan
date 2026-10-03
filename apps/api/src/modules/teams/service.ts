@@ -34,6 +34,7 @@ import {
   type MemberSource,
 } from '#modules/members/service';
 import { getStats, type StatsDto } from '#modules/analytics/service';
+import { assertWorkspaceOwner } from '#modules/workspaces/service';
 
 // The rank a person holds in a team.
 export type TeamRole = 'owner' | 'manager' | 'member';
@@ -724,14 +725,12 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 // Writes a team owned by one account, with the default role its projects assign.
 export async function insertOwnedTeam(
   tx: Transaction,
+  workspaceId: number,
   name: string,
   ownerId: string,
   slug: string | null = null,
 ) {
-  const [row] = await tx
-    .insert(team)
-    .values({ workspaceId: await instanceWorkspaceId(tx), name, slug })
-    .returning();
+  const [row] = await tx.insert(team).values({ workspaceId, name, slug }).returning();
   const [membership] = await tx
     .insert(teamMember)
     .values({ teamId: row.id, userId: ownerId, role: 'owner' })
@@ -768,8 +767,14 @@ export async function assertSeatFree(teamId: number, userId: string): Promise<vo
   }
 }
 
-export async function createTeam(name: string, slug: string, ownerId: string): Promise<TeamRow> {
-  const workspaceId = await instanceWorkspaceId(db);
+export async function createTeam(
+  name: string,
+  slug: string,
+  ownerId: string,
+  requestedWorkspaceId?: number,
+): Promise<TeamRow> {
+  const workspaceId = requestedWorkspaceId ?? (await instanceWorkspaceId(db));
+  await assertWorkspaceOwner(workspaceId, ownerId);
   const { maxTeams } = await getLimits(workspaceId);
   if (maxTeams > 0 && (await db.$count(team, eq(team.workspaceId, workspaceId))) >= maxTeams) {
     throw new HttpError(409, `The workspace already has ${maxTeams} teams`);
@@ -777,7 +782,7 @@ export async function createTeam(name: string, slug: string, ownerId: string): P
   assertSlugAllowed(slug);
   return withSlugConflict(() =>
     db.transaction(async (tx) => {
-      const { team: row, membership } = await insertOwnedTeam(tx, name, ownerId, slug);
+      const { team: row, membership } = await insertOwnedTeam(tx, workspaceId, name, ownerId, slug);
       return {
         id: row.id,
         workspaceId: row.workspaceId,

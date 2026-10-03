@@ -119,6 +119,9 @@ Enforced declaratively through macros, never imperative calls in handlers.
   from the route once it expands the macro, so there is nothing else to read it from.
 - Guards/macros wrap the `shared/access.ts` primitives. Handlers that still need
   `user` (project create, invite accept/reject, self-removal) call `requireUser(user)`.
+- **Only the owner of a workspace creates a team in it** (`POST /teams`, `createTeam` in
+  `teams/service.ts`). `workspaceId` in the body names the workspace; left out, it is the
+  instance workspace, which is the only one a self-hosted instance has. Anyone else gets 403.
 - **A member of the team joins a project directly** (`POST /projects/:key/members`,
   from the candidate list); anyone else joins through an invite, which puts them in
   the team as well. A team invite (`/teams/:teamId/invites`) names no project. One
@@ -216,6 +219,11 @@ account links it; a name or address sent on a create, PUT or PATCH is accepted a
 account keeps its own. Groups belong to a workspace (`scim_group.workspace_id`), their names
 are unique within it, and their members must be accounts it sees. The group mappings and the
 settings are routes of `modules/workspaces/`, open to the workspace owner only.
+
+A create first asks the installed policy whether the workspace may provision the address
+(`email-policy.ts`). A self-hosted instance has one workspace and allows any address; a
+hosted build calls `setScimEmailPolicy` with a check against the domains the workspace has
+verified, and a refused address answers 400 `invalidValue`.
 
 Deactivation (`active: false`) and DELETE take the person out of every team of the
 workspace through `dropWorkspaceMemberships` in `teams/service.ts`, invite memberships

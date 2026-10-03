@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Info, ShieldCheck, UsersRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useWorkspaceSections } from '@/cloud';
 import type { WorkspaceSummary } from '@/lib/api/endpoints/workspaces';
 import { workspacePath } from '@/utils/paths';
 import { useWorkspaceQuery } from '@/services/workspaces.service';
@@ -12,6 +13,7 @@ export default function WorkspaceSectionNav({ workspace }: { workspace: Workspac
   const t = useTranslations('teams.workspace');
   const pathname = usePathname();
   const detail = useWorkspaceQuery(workspace.id).data;
+  const extra = useWorkspaceSections(workspace);
 
   const sections: SectionNavItem[] = [
     { id: 'info', label: t('general'), icon: Info, href: workspacePath(workspace.id) },
@@ -32,6 +34,12 @@ export default function WorkspaceSectionNav({ workspace }: { workspace: Workspac
           },
         ]
       : []),
+    ...extra.map(({ id, label, icon }) => ({
+      id,
+      label,
+      icon,
+      href: workspacePath(workspace.id, id),
+    })),
   ];
   const activeId = sections.find((entry) => entry.href === pathname)?.id ?? null;
 
