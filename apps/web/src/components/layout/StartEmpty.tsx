@@ -23,8 +23,8 @@ export default function StartEmpty({
   title: string;
   hint: string;
   action?: string;
-  onAction: () => void;
-  children: ReactNode;
+  onAction?: () => void;
+  children?: ReactNode;
 }) {
   return (
     <div className="flex h-svh items-center justify-center p-6">

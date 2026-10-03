@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { WorkspaceRailActions } from '@/cloud';
 import type { Team } from '@/lib/api/endpoints/teams';
 import type { WorkspaceSummary } from '@/lib/api/endpoints/workspaces';
 import { teamPath, workspacePath } from '@/utils/paths';
@@ -51,6 +52,7 @@ export default function WorkspacesRail({
           </Tooltip>
         );
       })}
+      <WorkspaceRailActions />
     </nav>
   );
 }

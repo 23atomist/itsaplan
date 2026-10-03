@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { SquareKanban, Users } from 'lucide-react';
+import { NoTeamStart } from '@/cloud';
 import { useProjectsQuery } from '@/services/projects.service';
 import { useTeamsQuery } from '@/services/teams.service';
 import { useWorkspacesQuery } from '@/services/workspaces.service';
@@ -19,7 +20,8 @@ import StartEmpty from '@/components/layout/StartEmpty';
 // the project list and the preferences before deciding so it does not flash the
 // wrong destination. With no projects at all, an account that owns or manages a team
 // is offered to create the first one there. The owner of a workspace is offered to create
-// a team in it; any other account is told who adds them.
+// a team in it, an account with no team and no workspace it owns gets `NoTeamStart`, and a
+// team member is told who adds them to a project.
 export default function Home() {
   const t = useTranslations('shell');
   const tCommon = useTranslations('common');
@@ -47,13 +49,12 @@ export default function Home() {
   const ownedWorkspace = workspaces?.find((one) => one.role === 'owner');
 
   if (teams && workspaces && !managedTeam && projects?.length === 0) {
-    let hint = t('noProjectAccessHint');
-    if (teams.length === 0) hint = ownedWorkspace ? t('noTeamsHint') : t('noTeamsMemberHint');
+    if (teams.length === 0 && !ownedWorkspace) return <NoTeamStart />;
     return (
       <StartEmpty
         icon={<Users />}
         title={teams.length === 0 ? t('noTeamsTitle') : t('noProjectsTitle')}
-        hint={hint}
+        hint={teams.length === 0 ? t('noTeamsHint') : t('noProjectAccessHint')}
         action={ownedWorkspace && t('createTeam')}
         onAction={() => setCreating(true)}
       >

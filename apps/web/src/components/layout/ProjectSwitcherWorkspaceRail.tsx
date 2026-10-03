@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { WorkspaceRailActions } from '@/cloud';
 import { cn } from '@/lib/utils';
 import type { WorkspaceSummary } from '@/lib/api/endpoints/workspaces';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -49,6 +50,7 @@ export default function ProjectSwitcherWorkspaceRail({
           </Tooltip>
         );
       })}
+      <WorkspaceRailActions />
     </div>
   );
 }
