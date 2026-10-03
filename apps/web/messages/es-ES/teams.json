@@ -543,6 +543,9 @@
   },
   "workspace": {
     "rail": "Espacios de trabajo",
+    "create": "Nuevo espacio de trabajo",
+    "createUnavailableTitle": "Más espacios de trabajo",
+    "createUnavailableHint": "Esta instancia tiene un solo espacio de trabajo. Crear y gestionar espacios de trabajo está disponible en Cloud y en Pro autoalojado.",
     "general": "General",
     "roles": {
       "owner": "Propietario",

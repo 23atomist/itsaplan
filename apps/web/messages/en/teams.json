@@ -543,6 +543,9 @@
   },
   "workspace": {
     "rail": "Workspaces",
+    "create": "New workspace",
+    "createUnavailableTitle": "More workspaces",
+    "createUnavailableHint": "This instance has one workspace. Creating and managing workspaces is available in Cloud and self-hosted Pro.",
     "general": "General",
     "roles": {
       "owner": "Owner",

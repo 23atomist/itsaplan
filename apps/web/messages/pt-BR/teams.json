@@ -543,6 +543,9 @@
   },
   "workspace": {
     "rail": "Workspaces",
+    "create": "Novo workspace",
+    "createUnavailableTitle": "Mais workspaces",
+    "createUnavailableHint": "Esta instância tem um workspace. Criar e gerenciar workspaces está disponível no Cloud e no Pro auto-hospedado.",
     "general": "Geral",
     "roles": {
       "owner": "Proprietário",

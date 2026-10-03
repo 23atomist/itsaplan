@@ -543,6 +543,9 @@
   },
   "workspace": {
     "rail": "مساحات العمل",
+    "create": "مساحة عمل جديدة",
+    "createUnavailableTitle": "مساحات عمل أكتر",
+    "createUnavailableHint": "النسخة دي فيها مساحة عمل واحدة. إنشاء مساحات العمل وإدارتها متاح في Cloud وفي نسخة Pro للاستضافة الذاتية.",
     "general": "عام",
     "roles": {
       "owner": "المالك",

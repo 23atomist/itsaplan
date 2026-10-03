@@ -19,9 +19,10 @@ Next.js App Router, SSR (not SPA). Tailwind v4 + shadcn/ui. See root `AGENTS.md`
   to a workspace's settings — each a menu entry and a page, shown by
   `WorkspaceSectionNav` and opened at `/workspaces/:id/:sectionId`; here it returns none.
   `WorkspaceRailActions` renders below the workspace tiles of both rails (the project picker
-  and the teams page), where the hosted build puts creating a workspace; here it renders
-  nothing. `NoTeamStart` is the start page of an account with no team and no workspace it
-  owns; here it says who adds them, and the hosted build offers to create a workspace.
+  and the teams page), where the hosted build puts creating a workspace; here it is a
+  button whose popover says where more workspaces are available. `NoTeamStart` is the start
+  page of an account with no team and no workspace it owns; here it says who adds them, and
+  the hosted build offers to create a workspace.
   The hosted build points `CLOUD_UI_ENTRY` at its own module exporting the same names, and
   `WEB_TRACING_ROOT` at the root its workspace has; unset, both are what this repository needs.
 

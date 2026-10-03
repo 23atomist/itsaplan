@@ -543,6 +543,9 @@
   },
   "workspace": {
     "rail": "Workspace",
+    "create": "Workspace baru",
+    "createUnavailableTitle": "Lebih banyak workspace",
+    "createUnavailableHint": "Instance ini memiliki satu workspace. Membuat dan mengelola workspace tersedia di Cloud dan Pro self-hosted.",
     "general": "Umum",
     "roles": {
       "owner": "Pemilik",

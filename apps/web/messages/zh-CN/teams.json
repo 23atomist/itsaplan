@@ -543,6 +543,9 @@
   },
   "workspace": {
     "rail": "工作区",
+    "create": "新建工作区",
+    "createUnavailableTitle": "更多工作区",
+    "createUnavailableHint": "此实例只有一个工作区。创建和管理工作区可在 Cloud 和自托管 Pro 版中使用。",
     "general": "常规",
     "roles": {
       "owner": "所有者",
