@@ -112,6 +112,7 @@ export interface TeamProjectRow {
   memberCount: number;
   owners: { userId: string; name: string; image: string | null }[];
   isMember: boolean;
+  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -547,6 +548,7 @@ export async function listTeamProjects(
         name: project.name,
         description: project.description,
         mcpEnabled: project.mcpEnabled,
+        archivedAt: project.archivedAt,
         createdAt: project.createdAt,
         memberCount: sql<number>`count(${projectMember.userId})::int`,
         isMember: sql<boolean>`bool_or(${projectMember.userId} = ${userId})`,
@@ -605,6 +607,7 @@ export async function listTeamProjects(
       memberCount: p.memberCount,
       owners: ownersByProject.get(p.id) ?? [],
       isMember: p.isMember ?? false,
+      archivedAt: p.archivedAt ? iso(p.archivedAt) : null,
       createdAt: iso(p.createdAt),
     })),
     total: counted[0]?.count ?? 0,

@@ -12,6 +12,8 @@ import {
   requireTeamPermission,
   assertPermission,
   assertMcpEnabled,
+  assertWritable,
+  assertProjectWritable,
   assertFeatureEnabled,
   assertProjectFeature,
   type AuthUser,
@@ -83,6 +85,7 @@ export function entityGuard(
       await assertPermission(projectId, user, resource, action);
       if (feature) await assertProjectFeature(projectId, feature);
       await assertMcpAllowed(projectId, request.headers);
+      await assertProjectWritable(projectId, request.method);
       return { projectId };
     },
   });
@@ -144,6 +147,7 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
       async resolve({ params, user, request }) {
         const project = await requireProjectAccess((params as ProjectKeyParams).projectKey, user);
         assertMcpEnabled(project, isMcpRequest(request.headers));
+        assertWritable(project, request.method);
         return { project };
       },
     };
@@ -175,6 +179,8 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
           permission[1],
         );
         assertMcpEnabled(project, isMcpRequest(request.headers));
+        // Deleting the project is the one change an archived project still takes.
+        if (permission[0] !== 'danger_zone') assertWritable(project, request.method);
         return { project };
       },
     };
@@ -188,6 +194,7 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
       async resolve({ params, user, request }) {
         const project = await requireProjectOwner((params as ProjectKeyParams).projectKey, user);
         assertMcpEnabled(project, isMcpRequest(request.headers));
+        assertWritable(project, request.method);
         return { project };
       },
     };
@@ -200,6 +207,7 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
       async resolve({ params, user, request }) {
         const project = await requireProjectAdmin((params as ProjectKeyParams).projectKey, user);
         assertMcpEnabled(project, isMcpRequest(request.headers));
+        assertWritable(project, request.method);
         return { project };
       },
     };
@@ -207,6 +215,7 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
 
   // A project the caller's team runs, for what follows their rank in the team rather
   // than any project role: copying the project into one of their own.
+  // Copying only reads the source, so an archived project can still be copied.
   teamRunsProject(_enabled: boolean) {
     return {
       async resolve({ params, user, request }) {
@@ -232,6 +241,7 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
           permission[1],
         );
         assertMcpEnabled(project, isMcpRequest(request.headers));
+        assertWritable(project, request.method);
         return { project };
       },
     };
@@ -250,6 +260,7 @@ export const guards = new Elysia({ name: 'guards' }).use(authContext).macro({
           permission[1],
         );
         assertMcpEnabled(project, isMcpRequest(request.headers));
+        assertWritable(project, request.method);
         return { project };
       },
     };
