@@ -9,7 +9,8 @@ import type {
 } from './canonical';
 
 // Thrown by a source adapter when the source's rate limit is reached. The worker
-// reschedules the job after retryAfterMs and does not count it as a failed attempt.
+// reschedules the job after retryAfterMs: a rate limit is waited out and never
+// fails the job by itself.
 export class SourceRateLimitedError extends Error {
   constructor(
     public readonly retryAfterMs: number,
