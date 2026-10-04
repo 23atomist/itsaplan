@@ -36,14 +36,21 @@ running to completion in one.
 - `import-sources.ts` — one entry per `import_job.source`: its credential and
   config types, how to build its reader, and its issue-key prefix for Rewrite. A
   new source adds an entry here; the phases do not change.
-- `import-retry.ts` — what a failed tick does: a rate limit is waited out and
-  does not count toward the attempt limit (the claim's bump is undone), any other error retries with backoff until `MAX_ATTEMPTS` in a row.
-- `plane-adapter.ts` — the only implementation today. HTTP against a Plane
+- `import-retry.ts` — what a failed tick does: a rate limit waits and is not
+  counted, a job whose source has no registry entry fails at once, any other
+  error retries with backoff until `MAX_ATTEMPTS` in a row.
+- `plane-adapter.ts` — the Plane implementation. HTTP against a Plane
   instance via `pinnedFetch`, using the credential decrypted from the job row
   (base URL, workspace slug, API key — never from env, since this has to work
   against any operator's self-hosted instance). `docs/dev/plane-import-source-notes.md`
   is the spec it follows for pagination, rate limiting, and Plane's actual wire
   shapes.
+- `linear-adapter.ts` and `linear-mapping.ts` — the Linear implementation: its
+  GraphQL API at the fixed `https://api.linear.app/graphql` with the job's
+  personal API key, and the pure mapping from Linear's shapes. Files uploaded into
+  Linear text are attachments; `resolveAttachmentDownload` follows
+  `uploads.linear.app`'s redirects itself and sends the key to that host only.
+  `docs/dev/linear-import.md` has the queries, limits and mapping.
 - `cross-reference.ts` — pure text matching for a source's own "KEY-123"-style
   issue identifier: no `@repo/db`, no network, unit-tested directly. What
   the Rewrite phase resolves into itsaplan's own issue ids.
@@ -60,7 +67,9 @@ running to completion in one.
   chance to resolve, the same way it already does for relations. Rewrite scans
   every created issue's description and comments for a mention of the
   source's own identifier and rewrites it to this project's, purely from
-  already-local data — it makes no further requests to the source.
+  already-local data — it makes no further requests to the source. An issue's
+  mention of itself stays as written (the Linear footer relies on it), and so
+  does an identifier that is a segment of a URL path.
 - The Attachments phase re-lists each issue's attachments (metadata alone,
   captured during Create, is not reused — a download needs a fresh resolve of
   the two-hop, hour-lived URL right before it happens) and downloads the
@@ -98,8 +107,9 @@ running to completion in one.
 - **Pure logic stays dependency-free.** `backoff.ts`, `signature.ts`, and
   `isRetryableStatus` import nothing from `@repo/db`, so unit tests run without a
   database. Keep DB access in `store.ts`. Same split for imports: `canonical.ts`,
-  `reader.ts`, `plane-adapter.ts`, `cross-reference.ts`, `attachment-download.ts`,
-  `import-sources.ts`, and `import-retry.ts` import nothing from
+  `reader.ts`, `plane-adapter.ts`, `linear-adapter.ts`, `linear-mapping.ts`,
+  `cross-reference.ts`, `attachment-download.ts`, `import-sources.ts`, and
+  `import-retry.ts` import nothing from
   `@repo/db` (its state-category normalization, markdown conversion,
   cursor/rate-limit, and cross-reference matching logic are unit-tested
   directly); `@repo/db` access stays in `import-store.ts`.
