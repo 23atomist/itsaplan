@@ -51,7 +51,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_UPLOAD_REDIRECTS = 3;
 
 const ISSUE_FIELDS = `
-  id identifier number title description priority dueDate createdAt updatedAt
+  id identifier number title description priority dueDate createdAt updatedAt trashed
   state { id }
   assignee { email }
   cycle { id }
@@ -252,8 +252,10 @@ export class LinearReader implements SourceReader {
       filter: { team: { id: { eq: this.scope.teamId } }, project },
       after: cursor,
     });
+    // includeArchived also returns issues in Linear's trash, which are deleted there.
+    const kept = data.connection.nodes.filter((node) => !node.trashed);
     return {
-      items: data.connection.nodes.map((node) => mapLinearIssue(assertComplete(node), this.scope)),
+      items: kept.map((node) => mapLinearIssue(assertComplete(node), this.scope)),
       cursor: linearNextCursor(data.connection.pageInfo),
     };
   }

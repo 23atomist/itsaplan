@@ -67,6 +67,7 @@ export interface LinearIssueNode {
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
+  trashed?: boolean | null;
   state: { id: string };
   assignee: { email: string } | null;
   cycle: { id: string } | null;

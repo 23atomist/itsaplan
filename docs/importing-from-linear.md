@@ -95,6 +95,7 @@ project, plus one for the team's issues with no project.
 - **Project milestones, project updates, documents, initiatives, and custom views.** A Linear
   project's own name, description, and status are not copied either — only its issues.
 - **Archived state.** An archived Linear issue is imported as an ordinary issue in its state.
+- **Deleted issues** — an issue in Linear's trash is left out.
 - **Start dates** — Linear issues have none.
 - **"Similar" relations** — Linear suggests these itself; nobody created them.
 - **Files outside Linear's own file storage.** A link attachment pointing anywhere else is
