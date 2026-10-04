@@ -472,8 +472,11 @@ async function runAttachments(job: ClaimedImportJob, reader: SourceReader): Prom
             `"${attachment.filename}" is type "${attachment.contentType}", not accepted on this instance`,
           );
         }
-        const url = await reader.resolveAttachmentDownloadUrl(record.sourceId, attachment.sourceId);
-        const bytes = await downloadAttachment(url, limits.maxAttachmentMb * MB);
+        const download = await reader.resolveAttachmentDownload(
+          record.sourceId,
+          attachment.sourceId,
+        );
+        const bytes = await downloadAttachment(download, limits.maxAttachmentMb * MB);
         await createLocalAttachmentAndRecord(job.id, attachment.sourceId, {
           projectId: job.projectId,
           issueId: record.localId,

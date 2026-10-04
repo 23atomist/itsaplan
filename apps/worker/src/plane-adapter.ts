@@ -1,5 +1,10 @@
 import { pinnedFetch } from '@repo/net';
-import { SourceRateLimitedError, type Page, type SourceReader } from './reader';
+import {
+  SourceRateLimitedError,
+  type AttachmentDownload,
+  type Page,
+  type SourceReader,
+} from './reader';
 import type {
   CanonicalState,
   CanonicalStateCategory,
@@ -318,10 +323,10 @@ export class PlaneReader implements SourceReader {
   // Two-hop resolve, confirmed live (see "Attachments" in the notes file): this
   // call itself 302s to an S3 URL valid for exactly an hour, needing no Plane
   // auth — never resolved ahead of the moment it's actually downloaded.
-  async resolveAttachmentDownloadUrl(
+  async resolveAttachmentDownload(
     issueSourceId: string,
     attachmentSourceId: string,
-  ): Promise<string> {
+  ): Promise<AttachmentDownload> {
     const path = `/work-items/${issueSourceId}/attachments/${attachmentSourceId}/`;
     const res = await this.requestRaw(path);
     const location = res.headers.get('location');
@@ -330,7 +335,7 @@ export class PlaneReader implements SourceReader {
         `Plane attachment resolve did not redirect: GET ${path} -> HTTP ${res.status}`,
       );
     }
-    return location;
+    return { url: location };
   }
 
   // members/ is flat, unpaginated, and carries email directly — exactly what
@@ -364,7 +369,7 @@ export class PlaneReader implements SourceReader {
   }
 
   // The rate-limit and 404 checks every Plane call needs, without requiring a
-  // 2xx status — resolveAttachmentDownloadUrl's whole point is a 3xx response.
+  // 2xx status — resolveAttachmentDownload's whole point is a 3xx response.
   private async requestRaw(path: string): Promise<Response> {
     const base = this.credential.baseUrl.replace(/\/$/, '');
     const url = `${base}/api/v1/workspaces/${this.credential.workspaceSlug}/projects/${this.projectId}${path}`;
