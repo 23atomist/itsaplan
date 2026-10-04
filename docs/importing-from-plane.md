@@ -30,7 +30,10 @@ of them affect data you may not notice is missing until later.
 ## What is imported
 
 - **Issues** — title, description (converted from Plane's rich text to Markdown), state,
-  labels, cycle, priority, start date, due date, and the parent issue if it is a sub-issue.
+  labels, cycle, priority, start date, due date, the parent issue if it is a sub-issue, and
+  the dates the issue was created and last updated in Plane. If the project archives
+  completed or canceled issues automatically, an imported issue whose last update in Plane
+  is older than that threshold is archived on the next sweep.
 - **Assignees and comment authors** — matched to an existing project member by email. It is
   never assigned to the wrong person, and no placeholder account is created; what happens
   when no member has that email is a choice you make in the mapping review step below.

@@ -521,6 +521,15 @@ export interface NewLocalIssue {
   priority: string | null;
   startDate: string | null;
   dueDate: string | null;
+  // The source's own ISO timestamps. Absent or unparseable leaves the column default, now().
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function sourceTimestamp(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 // An issue whose title matches one already in the project (case- and
@@ -595,6 +604,8 @@ export async function createLocalIssueAndRecord(
         startDate: input.startDate,
         dueDate: input.dueDate,
         position: Number(posRow!.pos),
+        createdAt: sourceTimestamp(input.createdAt),
+        updatedAt: sourceTimestamp(input.updatedAt),
       })
       .returning({ id: issue.id });
     await upsertImportRecordWith(tx, jobId, 'issue', sourceId, 'issue', row!.id, sourceDisplayId);
