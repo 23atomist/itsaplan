@@ -20,7 +20,7 @@ import {
   lockAttachmentStorage,
   type ImportSource,
 } from '@repo/db';
-import { and, eq, gt, isNull, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, isNotNull, sql, type Column } from 'drizzle-orm';
 import { decryptSecret, type EncryptedSecret } from '@repo/crypto';
 import {
   putObject,
@@ -246,6 +246,19 @@ async function upsertImportRecordWith(
       target: [importRecord.importJobId, importRecord.sourceEntityType, importRecord.sourceId],
       set: { localEntityType, localId, sourceDisplayId },
     });
+}
+
+// True for a local row this job has not mapped yet. A row the same job already
+// mapped belongs to another source record, so it is never that record's duplicate:
+// two source issues may share a title, two comments a body and a timestamp. A row an
+// earlier job mapped stays reusable, which is what makes a re-run not duplicate.
+function notMappedByJob(jobId: number, entityType: ImportEntityType, localId: Column) {
+  return sql`NOT EXISTS (
+    SELECT 1 FROM ${importRecord}
+    WHERE ${importRecord.importJobId} = ${jobId}
+      AND ${importRecord.sourceEntityType} = ${entityType}
+      AND ${importRecord.localId} = ${localId}
+  )`;
 }
 
 export async function upsertImportRecord(
@@ -533,8 +546,9 @@ function sourceTimestamp(value: string | undefined): Date | undefined {
 }
 
 // An issue whose title matches one already in the project (case- and
-// whitespace-insensitive, the same comparison the file-based importer uses)
-// is reused instead of duplicated — the same protection createLocalLabel and
+// whitespace-insensitive, the same comparison the file-based importer uses), and
+// that this job has not already mapped to another source issue, is reused
+// instead of duplicated — the same protection createLocalLabel and
 // createLocalStateAndRecord give their own entities. Comments and labels the
 // import attaches afterward land on that existing issue rather than being
 // orphaned. Skipped for a blank title: input.title falls back to
@@ -565,8 +579,11 @@ export async function createLocalIssueAndRecord(
           and(
             eq(issue.projectId, input.projectId),
             sql`lower(btrim(${issue.title})) = lower(btrim(${input.title}))`,
+            notMappedByJob(jobId, 'issue', issue.id),
           ),
-        );
+        )
+        .orderBy(issue.id)
+        .limit(1);
       if (existing) {
         await upsertImportRecordWith(
           tx,
@@ -622,12 +639,13 @@ export async function setIssueLabels(issueId: number, labelIds: number[]): Promi
 }
 
 // A comment already on the issue with the same body and createdAt (the two
-// fields Plane's own record carries verbatim) is reused instead of
-// duplicated — the same reuse-by-content protection issues, states, and
-// cycles get, needed here because a second import job resolves the parent
-// issue to the same, already-created row and would otherwise re-post every
-// comment on it.
+// fields Plane's own record carries verbatim), and not already mapped by this
+// job, is reused instead of duplicated — the same reuse-by-content protection
+// issues, states, and cycles get, needed here because a second import job
+// resolves the parent issue to the same, already-created row and would otherwise
+// re-post every comment on it.
 export async function createLocalComment(
+  jobId: number,
   issueId: number,
   authorUserId: string | null,
   authorName: string,
@@ -644,8 +662,11 @@ export async function createLocalComment(
         eq(issueActivity.kind, 'comment'),
         eq(issueActivity.body, bodyMarkdown),
         eq(issueActivity.createdAt, createdAt),
+        notMappedByJob(jobId, 'comment', issueActivity.id),
       ),
-    );
+    )
+    .orderBy(issueActivity.id)
+    .limit(1);
   if (existing) return existing.id;
 
   const [row] = await db

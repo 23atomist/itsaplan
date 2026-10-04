@@ -108,7 +108,10 @@ categorizes it differently.
 This is a name/content match, not a record of which import created what, so it also means
 an issue you created by hand before importing — one that happens to share an exact title
 with something in Plane — is treated as the same issue and gets Plane's labels, comments,
-and other fields attached to it rather than getting a second copy.
+and other fields attached to it rather than getting a second copy. Within one import, two
+different Plane issues with the same title stay two issues, and two comments with the same
+text and time stay two comments: what an import has already matched is never matched again
+by that same import.
 
 ## Exporting your project's data
 

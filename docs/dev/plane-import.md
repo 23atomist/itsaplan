@@ -141,7 +141,10 @@ attachment) are a distinct path, not covered by this — see "Inline images" in
   via its own `(project_id, name)` unique constraint. A match is reused, never overwritten:
   an existing column's `stateType` is left as Plane's category disagrees with it, for
   instance. This is a content match, not provenance tracking, so it also matches content a
-  user created by hand before importing, not only a previous import's output. `issue_link`
+  user created by hand before importing, not only a previous import's output. An issue or
+  comment the same job already mapped is excluded from the lookup (`notMappedByJob`): it
+  belongs to another source record, so two source issues with one title, or two comments
+  with one body and timestamp, stay apart within a job. `issue_link`
   needs no equivalent logic — its `(pair, kind)` unique index rejects the duplicate insert
   outright, caught by `isUniqueViolation` in `createIssueLink`.
   State/cycle name matching is exact (case-sensitive); issue title matching is not. Nothing
