@@ -164,7 +164,7 @@ attachment) are a distinct path, not covered by this — see "Inline images" in
 `rateLimitBackoffMs` (`plane-adapter.ts`) reads `x-ratelimit-remaining`/`x-ratelimit-reset`/
 a 429 off every response; hitting the limit throws `SourceRateLimitedError` (`reader.ts`),
 and `tickErrorOutcome` (`import-retry.ts`) reschedules via `retryImportJobLater` with
-`last_error` `'rate limited'` rather than counting it as a failed attempt. `import_job.last_error` is cleared the moment a claim starts
+`last_error` `'rate limited'` and gives back the claim's `attempts` bump, so a rate limit never counts toward `MAX_ATTEMPTS`. `import_job.last_error` is cleared the moment a claim starts
 a new attempt, as well as on success and on completion (`import-store.ts`'s
 `claimDueImportJobs`/`saveImportJobCursor`/`advanceImportJobPhase`/`completeImportJob`), so a
 non-null `lastError` on a still-`pending` job reliably means "currently waiting out a retry,"

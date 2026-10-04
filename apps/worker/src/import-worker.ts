@@ -91,7 +91,7 @@ async function handleTickError(job: ClaimedImportJob, error: unknown): Promise<v
     await failImportJob(job.id, outcome.lastError);
     return;
   }
-  await retryImportJobLater(job.id, outcome.delayMs, outcome.lastError);
+  await retryImportJobLater(job.id, outcome.delayMs, outcome.lastError, outcome.countsAsAttempt);
 }
 
 function buildReader(job: ClaimedImportJob): SourceReader {

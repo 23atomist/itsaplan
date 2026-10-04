@@ -18,6 +18,8 @@ import { eq } from 'drizzle-orm';
 import { encryptSecret } from '@repo/crypto';
 import { getObject } from '@repo/storage';
 import { readerForJob, sourceProjectKeyForJob } from '../../import-sources';
+import { tickErrorOutcome } from '../../import-retry';
+import { SourceRateLimitedError } from '../../reader';
 import { PlaneReader } from '../../plane-adapter';
 import {
   claimDueImportJobs,
@@ -26,6 +28,7 @@ import {
   createLocalIssueAndRecord,
   createLocalAttachmentAndRecord,
   findImportRecord,
+  retryImportJobLater,
   AttachmentRejectedError,
   type NewLocalIssue,
 } from '../../import-store';
@@ -125,6 +128,59 @@ describe('claimDueImportJobs', () => {
 
     const claimed = await claimDueImportJobs(50);
     expect(claimed.some((j) => j.id === jobId)).toBe(false);
+  });
+});
+
+async function claimJob(jobId: number): Promise<number> {
+  await db
+    .update(importJob)
+    .set({ nextAttemptAt: new Date(Date.now() - 1000) })
+    .where(eq(importJob.id, jobId));
+  const claimed = await claimDueImportJobs(1000);
+  return claimed.find((j) => j.id === jobId)!.attempts;
+}
+
+async function attemptsOf(jobId: number): Promise<number> {
+  const [row] = await db.select().from(importJob).where(eq(importJob.id, jobId));
+  return row!.attempts;
+}
+
+describe('retryImportJobLater', () => {
+  it('undoes the claim bump when the tick does not count as an attempt', async () => {
+    const { projectId, userId } = await makeProject();
+    const jobId = await makeImportJob(projectId, userId);
+
+    expect(await claimJob(jobId)).toBe(1);
+    await retryImportJobLater(jobId, 1000, 'rate limited', false);
+    expect(await attemptsOf(jobId)).toBe(0);
+
+    expect(await claimJob(jobId)).toBe(1);
+    await retryImportJobLater(jobId, 1000, 'HTTP 502', true);
+    expect(await attemptsOf(jobId)).toBe(1);
+  });
+
+  it('never takes attempts below zero', async () => {
+    const { projectId, userId } = await makeProject();
+    const jobId = await makeImportJob(projectId, userId);
+
+    await retryImportJobLater(jobId, 1000, 'rate limited', false);
+    expect(await attemptsOf(jobId)).toBe(0);
+  });
+
+  it('keeps a rate-limited run from exhausting the attempt limit', async () => {
+    const { projectId, userId } = await makeProject();
+    const jobId = await makeImportJob(projectId, userId);
+
+    for (let i = 0; i < 10; i++) {
+      const attempts = await claimJob(jobId);
+      const outcome = tickErrorOutcome(new SourceRateLimitedError(1000), attempts);
+      if (outcome.action !== 'retry') throw new Error('rate limit must retry');
+      await retryImportJobLater(jobId, outcome.delayMs, outcome.lastError, outcome.countsAsAttempt);
+    }
+    expect(await attemptsOf(jobId)).toBe(0);
+
+    const attempts = await claimJob(jobId);
+    expect(tickErrorOutcome(new Error('HTTP 502'), attempts).action).toBe('retry');
   });
 });
 
