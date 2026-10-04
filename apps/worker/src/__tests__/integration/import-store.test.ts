@@ -136,6 +136,35 @@ describe('claimDueImportJobs', () => {
   });
 });
 
+describe('import_job source', () => {
+  it('accepts a Linear job and claims it with its source', async () => {
+    const { projectId, userId } = await makeProject();
+    const [row] = await db
+      .insert(importJob)
+      .values({
+        projectId,
+        createdByUserId: userId,
+        source: 'linear',
+        config: { teamId: 'team-1', teamKey: 'ATO', projectFilter: 'none', projectId: null },
+        nextAttemptAt: new Date(Date.now() - 1000),
+      })
+      .returning({ id: importJob.id });
+
+    const job = (await claimDueImportJobs(1000)).find((j) => j.id === row!.id);
+
+    expect(job?.source).toBe('linear');
+  });
+
+  it('still refuses a source that has no adapter', async () => {
+    const { projectId, userId } = await makeProject();
+    const error = await db
+      .insert(importJob)
+      .values({ projectId, createdByUserId: userId, source: 'jira' })
+      .catch((e: unknown) => e);
+    expect((error as { cause?: Error }).cause?.message).toContain('import_job_source_check');
+  });
+});
+
 describe('decryptImportCredential', () => {
   it('resumes a Plane job the api created, mid-phase, with the same reader and key', async () => {
     const { projectId, userId } = await makeProject();
