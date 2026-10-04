@@ -108,6 +108,7 @@ export const linearPreviewBody = t.Object({
 });
 
 export const LinearPreviewResponse = PlanePreviewResponse;
+
 // Mirrors import_record_source_entity_type_check in packages/db/src/schema/app.ts.
 const entityCount = t.Object({ discovered: t.Number(), created: t.Number() });
 const CountsResponse = t.Object({

@@ -58,8 +58,8 @@ const ISSUE_FIELDS = `
   assignee { email }
   cycle { id }
   parent { id identifier team { id } project { id } }
-  labels(first: 50, includeArchived: true) { nodes { id } pageInfo { hasNextPage } }
-  attachments(first: 50, includeArchived: true) { nodes { title url } pageInfo { hasNextPage } }
+  labels(first: ${PAGE_SIZE}, includeArchived: true) { nodes { id } pageInfo { hasNextPage } }
+  attachments(first: ${PAGE_SIZE}, includeArchived: true) { nodes { title url } pageInfo { hasNextPage } }
 `;
 
 const STATES_QUERY = `query States($teamId: String!, $after: String) {
@@ -197,7 +197,7 @@ function assertComplete(issue: LinearIssueNode): LinearIssueNode {
   for (const name of ['labels', 'attachments'] as const) {
     if (issue[name].pageInfo?.hasNextPage) {
       throw new Error(
-        `Linear issue ${issue.identifier} has more than ${50} ${name}; stopping to avoid a truncated import`,
+        `Linear issue ${issue.identifier} has more than ${PAGE_SIZE} ${name}; stopping to avoid a truncated import`,
       );
     }
   }
