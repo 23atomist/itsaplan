@@ -8,6 +8,7 @@ describe('tickErrorOutcome', () => {
       action: 'retry',
       delayMs: 45_000,
       lastError: 'rate limited',
+      countsAsAttempt: false,
     });
   });
 
@@ -22,6 +23,7 @@ describe('tickErrorOutcome', () => {
     expect(outcome).toMatchObject({
       action: 'retry',
       lastError: 'Plane request failed: HTTP 502',
+      countsAsAttempt: true,
     });
     const delayMs = (outcome as { delayMs: number }).delayMs;
     expect(delayMs).toBeGreaterThanOrEqual(30_000);
