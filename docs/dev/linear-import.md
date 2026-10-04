@@ -56,8 +56,9 @@ registry fails at once with `UnsupportedImportSourceError`, with no retry.
 Linear answers a rate-limited request with HTTP 400 (sometimes 429) and the GraphQL error
 code `RATELIMITED`. `linearRateLimitBackoffMs` turns that into `SourceRateLimitedError`, waiting
 until the latest `X-RateLimit-*-Reset` (epoch milliseconds) of a budget whose `-Remaining`
-is 0, or one minute when no header says. The worker reschedules the job with
-`last_error = 'rate limited'` and does not count the attempt.
+is 0, or one minute when no header says. The worker reschedules the job for that
+reset time and records `last_error = 'rate limited'`. A rate limit never fails the job by
+itself.
 
 ## Text
 
