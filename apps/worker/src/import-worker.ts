@@ -159,7 +159,7 @@ interface RecordCursor {
   lastRecordId: number;
 }
 
-async function runCreate(job: ClaimedImportJob, reader: SourceReader): Promise<void> {
+export async function runCreate(job: ClaimedImportJob, reader: SourceReader): Promise<void> {
   await materializeStates(job, reader);
   await materializeLabels(job, reader);
   await materializeCycles(job, reader);
@@ -227,6 +227,10 @@ async function createOneIssue(
   sourceId: string,
 ): Promise<void> {
   const canonical = await reader.getIssue(sourceId);
+  // Read before the issue and its mapping are written: a failed read then leaves
+  // the issue unmapped, and the next tick retries the whole issue.
+  const comments = await reader.listIssueComments(sourceId);
+  const attachments = await reader.listIssueAttachments(sourceId);
 
   const stateRecord = await findImportRecord(job.id, 'state', canonical.stateSourceId);
   const columnId = stateRecord?.localId ?? (await firstProjectColumnId(job.projectId));
@@ -265,9 +269,8 @@ async function createOneIssue(
   });
   if (labelIds.length) await setIssueLabels(localId, labelIds);
 
-  await createComments(job, localId, await reader.listIssueComments(sourceId));
+  await createComments(job, localId, comments);
 
-  const attachments = await reader.listIssueAttachments(sourceId);
   if (attachments.length) {
     await insertDiscoveredIds(
       job.id,
