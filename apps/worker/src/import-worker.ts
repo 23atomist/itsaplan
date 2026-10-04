@@ -286,6 +286,8 @@ async function createOneIssue(
     priority: canonical.priority,
     startDate: canonical.startDate,
     dueDate: canonical.dueDate,
+    createdAt: canonical.createdAt,
+    updatedAt: canonical.updatedAt,
   });
   if (labelIds.length) await setIssueLabels(localId, labelIds);
 
