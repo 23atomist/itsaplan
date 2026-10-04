@@ -49,6 +49,8 @@ const UPLOAD_HOST = 'uploads.linear.app';
 const PAGE_SIZE = 50;
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_UPLOAD_REDIRECTS = 3;
+// Linear's budgets refill over an hour, so no reset is honoured beyond that.
+const MAX_RATE_LIMIT_WAIT_MS = 3_600_000;
 
 const ISSUE_FIELDS = `
   id identifier number title description priority dueDate createdAt updatedAt trashed
@@ -147,7 +149,7 @@ const RATE_LIMIT_HEADERS = ['requests', 'complexity', 'endpoint-requests'].map((
 
 // Linear answers a rate-limited request with HTTP 400 and the GraphQL error code
 // RATELIMITED (429 is handled the same). Its reset headers are epoch milliseconds;
-// the wait runs to the latest reset of a budget that is used up.
+// the wait runs to the latest reset of a budget that is used up, capped at an hour.
 export function linearRateLimitBackoffMs(
   response: { status: number; errorCodes: string[]; headers: Headers },
   nowMs = Date.now(),
@@ -159,7 +161,7 @@ export function linearRateLimitBackoffMs(
     return left !== null && Number(left) <= 0 && at > 0 ? [at] : [];
   });
   if (resets.length === 0) return 60_000;
-  return Math.max(1000, Math.max(...resets) - nowMs);
+  return Math.min(MAX_RATE_LIMIT_WAIT_MS, Math.max(1000, Math.max(...resets) - nowMs));
 }
 
 export type UploadHop =

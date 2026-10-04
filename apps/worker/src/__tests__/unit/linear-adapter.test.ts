@@ -325,6 +325,16 @@ describe('linearRateLimitBackoffMs', () => {
       linearRateLimitBackoffMs({ status: 400, errorCodes: ['RATELIMITED'], headers: past }, now),
     ).toBe(1000);
   });
+
+  it("waits at most an hour, Linear's own window, whatever the reset header says", () => {
+    const headers = new Headers({
+      'x-ratelimit-requests-remaining': '0',
+      'x-ratelimit-requests-reset': String(now + 30 * 24 * 3_600_000),
+    });
+    expect(
+      linearRateLimitBackoffMs({ status: 400, errorCodes: ['RATELIMITED'], headers }, now),
+    ).toBe(3_600_000);
+  });
 });
 
 describe('resolveAttachmentDownload', () => {
