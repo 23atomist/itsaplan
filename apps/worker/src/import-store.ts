@@ -29,12 +29,12 @@ import {
   attachmentObjectKey,
 } from '@repo/storage';
 import type { CanonicalState, CanonicalLabel, CanonicalCycle } from './canonical';
-import type { PlaneCredential } from './plane-adapter';
+import type { ImportCredential } from './import-sources';
 import { AttachmentRejectedError } from './attachment-download';
 
 export { AttachmentRejectedError };
 
-// All @repo/db access for the Plane import: claiming due import_job rows (the
+// All @repo/db access for a source import: claiming due import_job rows (the
 // same FOR UPDATE SKIP LOCKED + lease pattern as store.ts uses for
 // webhook_delivery), reading/writing a job's progress, the import_record
 // upsert primitive, and creating the local rows an import produces. The
@@ -101,7 +101,7 @@ export async function claimDueImportJobs(limit = 1): Promise<ClaimedImportJob[]>
   return rows as unknown as ClaimedImportJob[];
 }
 
-export function decryptImportCredential(job: ClaimedImportJob): PlaneCredential {
+export function decryptImportCredential(job: ClaimedImportJob): ImportCredential {
   if (!job.credentialCiphertext || !job.credentialIv || !job.credentialAuthTag) {
     throw new Error(`import job ${job.id} has no stored credential`);
   }
@@ -110,7 +110,7 @@ export function decryptImportCredential(job: ClaimedImportJob): PlaneCredential 
     iv: job.credentialIv,
     authTag: job.credentialAuthTag,
   };
-  return JSON.parse(decryptSecret(encrypted)) as PlaneCredential;
+  return JSON.parse(decryptSecret(encrypted)) as ImportCredential;
 }
 
 // A successful tick clears the claim lease (nextAttemptAt) and lastError, and
