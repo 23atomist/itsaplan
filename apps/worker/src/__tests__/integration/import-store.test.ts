@@ -15,9 +15,13 @@ import {
   type StorageSettings,
 } from '@repo/db';
 import { eq } from 'drizzle-orm';
+import { encryptSecret } from '@repo/crypto';
 import { getObject } from '@repo/storage';
+import { readerForJob, sourceProjectKeyForJob } from '../../import-sources';
+import { PlaneReader } from '../../plane-adapter';
 import {
   claimDueImportJobs,
+  decryptImportCredential,
   createLocalStateAndRecord,
   createLocalIssueAndRecord,
   createLocalAttachmentAndRecord,
@@ -121,6 +125,45 @@ describe('claimDueImportJobs', () => {
 
     const claimed = await claimDueImportJobs(50);
     expect(claimed.some((j) => j.id === jobId)).toBe(false);
+  });
+});
+
+describe('decryptImportCredential', () => {
+  it('resumes a Plane job the api created, mid-phase, with the same reader and key', async () => {
+    const { projectId, userId } = await makeProject();
+    const credential = {
+      baseUrl: 'https://plane.example.test',
+      workspaceSlug: 'acme',
+      apiKey: 'plane-api-key',
+    };
+    const encrypted = encryptSecret(JSON.stringify(credential));
+    const [row] = await db
+      .insert(importJob)
+      .values({
+        projectId,
+        createdByUserId: userId,
+        source: 'plane',
+        phase: 'create',
+        config: {
+          planeProjectId: 'project-1',
+          planeProjectKey: 'ROOMS',
+          unmatchedUserPolicy: 'unassigned',
+        },
+        cursor: { lastRecordId: 41 },
+        credentialCiphertext: encrypted.ciphertext,
+        credentialIv: encrypted.iv,
+        credentialAuthTag: encrypted.authTag,
+        nextAttemptAt: new Date(Date.now() - 1000),
+      })
+      .returning({ id: importJob.id });
+
+    const job = (await claimDueImportJobs(1000)).find((j) => j.id === row!.id);
+
+    expect(job).toMatchObject({ source: 'plane', phase: 'create', cursor: { lastRecordId: 41 } });
+    const decrypted = decryptImportCredential(job!);
+    expect(decrypted).toEqual(credential);
+    expect(readerForJob(job!, decrypted)).toBeInstanceOf(PlaneReader);
+    expect(sourceProjectKeyForJob(job!)).toBe('ROOMS');
   });
 });
 
