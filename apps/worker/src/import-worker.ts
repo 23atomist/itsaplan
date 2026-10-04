@@ -1,8 +1,8 @@
 import { getStorageSettings, mimeAllowed, MB } from '@repo/db';
 import { startPollLoop, type WorkerHandle } from './poll-loop';
 import { intEnv } from './env';
-import { equalJitterBackoffMs } from './backoff';
-import { PlaneReader, PlaneRateLimitedError } from './plane-adapter';
+import { PlaneReader } from './plane-adapter';
+import { tickErrorOutcome } from './import-retry';
 import type { SourceReader } from './reader';
 import type { CanonicalComment, CanonicalStateCategory } from './canonical';
 import { extractCrossReferences, applyCrossReferenceReplacements } from './cross-reference';
@@ -55,11 +55,6 @@ export function startImportWorker(): WorkerHandle {
 // additional Plane requests (comments, attachments, relations) against a
 // ~60 requests/minute budget, so this stays well under the discover page size.
 const ISSUES_PER_TICK = 15;
-// import_store.ts resets job.attempts to 0 on every tick that makes progress
-// (saveImportJobCursor/advanceImportJobPhase), so this counts consecutive
-// failed ticks, not total ticks claimed over the job's life — a multi-tick
-// import doesn't fail itself out just by running long.
-const MAX_ATTEMPTS = 10;
 
 async function tick(): Promise<void> {
   const [job] = await claimDueImportJobs();
@@ -91,16 +86,12 @@ async function tick(): Promise<void> {
 }
 
 async function handleTickError(job: ClaimedImportJob, error: unknown): Promise<void> {
-  if (error instanceof PlaneRateLimitedError) {
-    await retryImportJobLater(job.id, error.retryAfterMs, 'rate limited');
+  const outcome = tickErrorOutcome(error, job.attempts);
+  if (outcome.action === 'fail') {
+    await failImportJob(job.id, outcome.lastError);
     return;
   }
-  const message = error instanceof Error ? error.message : String(error);
-  if (job.attempts >= MAX_ATTEMPTS) {
-    await failImportJob(job.id, message);
-    return;
-  }
-  await retryImportJobLater(job.id, equalJitterBackoffMs(job.attempts), message);
+  await retryImportJobLater(job.id, outcome.delayMs, outcome.lastError);
 }
 
 interface PlaneImportConfig {

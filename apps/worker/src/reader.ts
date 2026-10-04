@@ -8,6 +8,17 @@ import type {
   CanonicalAttachment,
 } from './canonical';
 
+// Thrown by a source adapter when the source's rate limit is reached. The worker
+// reschedules the job after retryAfterMs and does not count it as a failed attempt.
+export class SourceRateLimitedError extends Error {
+  constructor(
+    public readonly retryAfterMs: number,
+    message = 'source rate limit reached',
+  ) {
+    super(message);
+  }
+}
+
 // One page of a cursor-paginated list. cursor is the exact, opaque value the
 // source API returned for the next page, or null when there is no next page.
 // It must be passed back to the source verbatim — never reconstructed — and a
