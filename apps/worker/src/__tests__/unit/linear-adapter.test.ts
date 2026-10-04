@@ -400,3 +400,47 @@ describe('upload helpers', () => {
     expect(nextUploadHop(UPLOAD, 410, null)).toEqual({ kind: 'refused' });
   });
 });
+
+describe('LinearReader completeness and scope', () => {
+  it.each(['labels', 'attachments'] as const)(
+    'fails loudly when an issue has more %s than one page',
+    async (name) => {
+      const node = issueNode({
+        [name]: { nodes: [], pageInfo: { hasNextPage: true } },
+      } as Partial<LinearIssueNode>);
+      const message = `Linear issue ATO-505 has more than 50 ${name}; stopping to avoid a truncated import`;
+      await expect(
+        readerAnswering([
+          Response.json({ data: { connection: page([node], null, false) } }),
+        ]).listIssues(null),
+      ).rejects.toThrow(message);
+      await expect(
+        readerAnswering([Response.json({ data: { issue: node } })]).getIssue('issue-505'),
+      ).rejects.toThrow(message);
+    },
+  );
+
+  it('asks for archived link attachments and the nested page info', async () => {
+    const sent: SentRequest[] = [];
+    await readerAnswering(
+      [Response.json({ data: { connection: page([], null, false) } })],
+      sent,
+    ).listIssues(null);
+    const { query } = graphqlCall(sent[0]!);
+    expect(query).toContain('attachments(first: 50, includeArchived: true)');
+    expect(query.match(/pageInfo \{ hasNextPage \}/g)).toHaveLength(2);
+  });
+
+  it('refuses a project scope without a project id', () => {
+    for (const projectId of [null, '']) {
+      expect(
+        () =>
+          new LinearReader(
+            { apiKey: API_KEY },
+            { ...SCOPE, projectId },
+            async () => new Response(),
+          ),
+      ).toThrow('Linear scope needs a projectId');
+    }
+  });
+});

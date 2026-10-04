@@ -56,8 +56,8 @@ const ISSUE_FIELDS = `
   assignee { email }
   cycle { id }
   parent { id identifier team { id } project { id } }
-  labels(first: 50, includeArchived: true) { nodes { id } }
-  attachments(first: 50) { nodes { title url } }
+  labels(first: 50, includeArchived: true) { nodes { id } pageInfo { hasNextPage } }
+  attachments(first: 50, includeArchived: true) { nodes { title url } pageInfo { hasNextPage } }
 `;
 
 const STATES_QUERY = `query States($teamId: String!, $after: String) {
@@ -189,6 +189,19 @@ export function linearUploadHeaders(
   return new URL(url).hostname === UPLOAD_HOST ? { Authorization: apiKey } : undefined;
 }
 
+// The nested label and link connections are read as one page of 50; more would be
+// silently dropped, so the import stops instead.
+function assertComplete(issue: LinearIssueNode): LinearIssueNode {
+  for (const name of ['labels', 'attachments'] as const) {
+    if (issue[name].pageInfo?.hasNextPage) {
+      throw new Error(
+        `Linear issue ${issue.identifier} has more than ${50} ${name}; stopping to avoid a truncated import`,
+      );
+    }
+  }
+  return issue;
+}
+
 export class LinearReader implements SourceReader {
   // One tick's Create step reads an issue, its comments and its uploads; these keep
   // that to one request each. A reader lives for one tick.
@@ -199,7 +212,11 @@ export class LinearReader implements SourceReader {
     private readonly credential: LinearCredential,
     private readonly scope: LinearScope,
     private readonly fetch: typeof pinnedFetch = pinnedFetch,
-  ) {}
+  ) {
+    if (scope.projectFilter === 'project' && !scope.projectId) {
+      throw new Error('Linear scope needs a projectId when projectFilter is "project"');
+    }
+  }
 
   async listStates(): Promise<CanonicalState[]> {
     const nodes = await this.paginate<LinearStateNode, TeamConnectionData<LinearStateNode>>(
@@ -236,7 +253,7 @@ export class LinearReader implements SourceReader {
       after: cursor,
     });
     return {
-      items: data.connection.nodes.map((node) => mapLinearIssue(node, this.scope)),
+      items: data.connection.nodes.map((node) => mapLinearIssue(assertComplete(node), this.scope)),
       cursor: linearNextCursor(data.connection.pageInfo),
     };
   }
@@ -303,7 +320,9 @@ export class LinearReader implements SourceReader {
   private issueNode(id: string): Promise<LinearIssueNode> {
     let node = this.issueNodes.get(id);
     if (!node) {
-      node = this.graphql<{ issue: LinearIssueNode }>(ISSUE_QUERY, { id }).then((d) => d.issue);
+      node = this.graphql<{ issue: LinearIssueNode }>(ISSUE_QUERY, { id }).then((d) =>
+        assertComplete(d.issue),
+      );
       this.issueNodes.set(id, node);
     }
     return node;

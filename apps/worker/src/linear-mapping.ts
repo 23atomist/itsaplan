@@ -71,8 +71,8 @@ export interface LinearIssueNode {
   assignee: { email: string } | null;
   cycle: { id: string } | null;
   parent: LinearIssueRef | null;
-  labels: { nodes: { id: string }[] };
-  attachments: { nodes: LinearLinkNode[] };
+  labels: { nodes: { id: string }[]; pageInfo?: { hasNextPage: boolean } };
+  attachments: { nodes: LinearLinkNode[]; pageInfo?: { hasNextPage: boolean } };
 }
 
 export interface LinearCommentNode {
