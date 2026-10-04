@@ -417,3 +417,54 @@ describe('linearUploadUrl', () => {
     );
   });
 });
+
+describe('fix round 1', () => {
+  it('strips sentence punctuation from a bare upload URL but not from a link destination', () => {
+    const uploads = extractLinearUploads(
+      'issue-505',
+      [
+        'see https://uploads.linear.app/o/f/b. And (https://uploads.linear.app/o/f/c), then https://uploads.linear.app/o/f/d?!',
+        '[x](https://uploads.linear.app/o/f/e.)',
+      ],
+      [],
+    );
+    expect(uploads.map((u) => u.sourceId)).toEqual([
+      'issue-505 https://uploads.linear.app/o/f/b',
+      'issue-505 https://uploads.linear.app/o/f/c',
+      'issue-505 https://uploads.linear.app/o/f/d',
+      'issue-505 https://uploads.linear.app/o/f/e.',
+    ]);
+  });
+
+  it('never generates a filename that another file already has', () => {
+    const uploads = extractLinearUploads(
+      'issue-505',
+      [
+        '![image.png](https://uploads.linear.app/o/a/1) ![image.png](https://uploads.linear.app/o/a/2) ![image (2).png](https://uploads.linear.app/o/a/3)',
+      ],
+      [],
+    );
+    const names = uploads.map((u) => u.filename);
+    expect(new Set(names.map((n) => n.toLowerCase())).size).toBe(3);
+    expect(names[0]).toBe('image.png');
+  });
+
+  it('gives cycles with a repeated name distinct names', () => {
+    const base = { startsAt: '2026-01-05T08:00:00.000Z', endsAt: '2026-01-19T08:00:00.000Z' };
+    const names = mapLinearCycles([
+      { id: 'a', number: 1, name: 'Sprint', description: null, ...base },
+      { id: 'b', number: 2, name: 'sprint', description: null, ...base },
+      { id: 'c', number: 3, name: null, description: null, ...base },
+      { id: 'd', number: 4, name: 'Cycle 3', description: null, ...base },
+    ]).map((c) => c.name);
+    expect(names[0]).toBe('Sprint');
+    expect(names[1]).toBe('sprint (Cycle 2)');
+    expect(names[2]).toBe('Cycle 3');
+    expect(names[3]).toBe('Cycle 3 (Cycle 4)');
+  });
+
+  it('refuses a next page that has no cursor', () => {
+    expect(() => linearNextCursor({ hasNextPage: true, endCursor: null })).toThrow('no end cursor');
+    expect(linearNextCursor({ hasNextPage: false, endCursor: null })).toBeNull();
+  });
+});

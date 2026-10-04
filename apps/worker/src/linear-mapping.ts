@@ -140,14 +140,29 @@ export function mapLinearLabels(nodes: LinearLabelNode[]): CanonicalLabel[] {
     }));
 }
 
+// The store reuses a cycle by name within a project, so every name in one list must be
+// distinct (case-insensitively), or two Linear cycles would merge into one.
 export function mapLinearCycles(nodes: LinearCycleNode[]): CanonicalCycle[] {
-  return nodes.map((c) => ({
+  const taken = new Set<string>();
+  return nodes.map((c) => {
+    const base = c.name?.trim() || `Cycle ${c.number}`;
+    let name = base;
+    for (let n = 1; taken.has(name.toLowerCase()); n++) {
+      name = n === 1 ? `${base} (Cycle ${c.number})` : `${base} (Cycle ${c.number}, ${n})`;
+    }
+    taken.add(name.toLowerCase());
+    return mapCycle(c, name);
+  });
+}
+
+function mapCycle(c: LinearCycleNode, name: string): CanonicalCycle {
+  return {
     sourceId: c.id,
-    name: c.name?.trim() || `Cycle ${c.number}`,
+    name,
     startDate: c.startsAt.slice(0, 10),
     endDate: c.endsAt.slice(0, 10),
     goal: c.description || undefined,
-  }));
+  };
 }
 
 // "https://linear.app/acme/issue/ATO-12/some-slug" and its markdown forms. The
@@ -285,7 +300,13 @@ export function mapLinearRelations(
 }
 
 export function linearNextCursor(pageInfo: LinearPageInfo): string | null {
-  return pageInfo.hasNextPage ? pageInfo.endCursor : null;
+  if (!pageInfo.hasNextPage) return null;
+  if (!pageInfo.endCursor) {
+    throw new Error(
+      'Linear reported another page but sent no end cursor; stopping to avoid a truncated import',
+    );
+  }
+  return pageInfo.endCursor;
 }
 
 const UPLOAD_LINK = /\[([^\]]*)\]\((https:\/\/uploads\.linear\.app\/[^)\s]+)\)/g;
@@ -324,7 +345,14 @@ function uniqueFilenames(names: string[]): string[] {
     seen.set(key, count);
     if (count === 1) return name;
     const dot = name.lastIndexOf('.');
-    return dot > 0 ? `${name.slice(0, dot)} (${count})${name.slice(dot)}` : `${name} (${count})`;
+    let n = count;
+    let candidate = '';
+    do {
+      candidate = dot > 0 ? `${name.slice(0, dot)} (${n})${name.slice(dot)}` : `${name} (${n})`;
+      n++;
+    } while (seen.has(candidate.toLowerCase()));
+    seen.set(candidate.toLowerCase(), 1);
+    return candidate;
   });
 }
 
@@ -342,7 +370,10 @@ export function extractLinearUploads(
     for (const [, label, url] of text.matchAll(UPLOAD_LINK)) {
       if (!labels.has(url!)) labels.set(url!, label!.trim());
     }
-    for (const [url] of text.matchAll(UPLOAD_URL)) {
+    // Bare URLs: trailing sentence punctuation is not part of the URL. Link
+    // destinations are exact, so they are removed before this scan.
+    for (const [match] of text.replace(UPLOAD_LINK, ' ').matchAll(UPLOAD_URL)) {
+      const url = match.replace(/[.,;:!?]+$/, '');
       if (!labels.has(url)) labels.set(url, '');
     }
   }
