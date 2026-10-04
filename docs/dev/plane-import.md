@@ -12,8 +12,9 @@ returns.
   `next_attempt_at`/`last_error` the same shape as `webhook_delivery`, credential columns
   encrypted the same way as `integration_credential`) and `import_record` (source id →
   local id mapping, the idempotency and resume primitive).
-- `apps/worker/src/{canonical,reader,plane-adapter,import-store,import-worker}.ts` — the
-  `SourceReader` port, the only implementation (Plane), and the phase state machine
+- `apps/worker/src/{canonical,reader,import-sources,plane-adapter,import-store,import-worker}.ts`
+  — the `SourceReader` port, the per-source registry the worker dispatches on
+  `import_job.source` through, the only implementation (Plane), and the phase state machine
   (discover → create → link → rewrite → attachments → done) that drives a job one bounded chunk per
   tick.
 - `packages/storage` and `packages/db/src/domains/storage.ts` — object storage and upload
@@ -158,9 +159,9 @@ attachment) are a distinct path, not covered by this — see "Inline images" in
 ## Rate limiting and resumability, working as designed
 
 `rateLimitBackoffMs` (`plane-adapter.ts`) reads `x-ratelimit-remaining`/`x-ratelimit-reset`/
-a 429 off every response; hitting the limit throws `PlaneRateLimitedError`, and
-`handleTickError` (`import-worker.ts`) reschedules via `retryImportJobLater` rather than
-counting it as a failed attempt. `import_job.last_error` is cleared the moment a claim starts
+a 429 off every response; hitting the limit throws `SourceRateLimitedError` (`reader.ts`),
+and `tickErrorOutcome` (`import-retry.ts`) reschedules via `retryImportJobLater` with
+`last_error` `'rate limited'` rather than counting it as a failed attempt. `import_job.last_error` is cleared the moment a claim starts
 a new attempt, as well as on success and on completion (`import-store.ts`'s
 `claimDueImportJobs`/`saveImportJobCursor`/`advanceImportJobPhase`/`completeImportJob`), so a
 non-null `lastError` on a still-`pending` job reliably means "currently waiting out a retry,"
