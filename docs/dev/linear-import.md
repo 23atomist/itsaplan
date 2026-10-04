@@ -82,10 +82,11 @@ attachments hosted there, first mention winning; a bare URL followed by sentence
 (`.,;:!?`) is read without it. The attachment's source id is `"<issue id> <upload URL>"`, so
 the same file referenced from two issues is attached to both.
 Linear reports no size or type: the type comes from the file name (Bun's MIME table) and
-`sizeBytes` is 0, so the size check happens on the downloaded bytes. Repeated names on one
-issue get ` (2)`, ` (3)` before the extension (skipping any name already taken, compared
-case-insensitively), because the store reuses an attachment with the same filename on the
-same issue.
+`sizeBytes` is 0, so the size check is the download's own byte limit: a larger file stops
+downloading there and is skipped (`ResponseTooLargeError` becomes `AttachmentRejectedError`).
+Repeated names on one issue get ` (2)`, ` (3)` before the extension (skipping any name already
+taken, compared case-insensitively), because the store reuses an attachment with the same
+filename on the same issue.
 
 `pinnedFetch` follows no redirect and `downloadAttachment` refuses anything but 2xx, so
 `resolveAttachmentDownload` takes the hops itself: a `GET` that reads only the response head
