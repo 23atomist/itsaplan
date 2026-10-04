@@ -32,7 +32,8 @@ running to completion in one.
 - `canonical.ts` — the source-independent shape an adapter produces
   (`CanonicalIssue`, `CanonicalState`, ...). Plain types, no logic.
 - `reader.ts` — the `SourceReader` port a source adapter implements, and the
-  `SourceRateLimitedError` an adapter throws when the source's rate limit is reached.
+  `SourceRateLimitedError` an adapter throws when the source's rate limit is
+  reached.
 - `import-sources.ts` — one entry per `import_job.source`: its credential and
   config types, how to build its reader, and its issue-key prefix for Rewrite. A
   new source adds an entry here; the phases do not change.
@@ -47,10 +48,11 @@ running to completion in one.
   shapes.
 - `linear-adapter.ts` and `linear-mapping.ts` — the Linear implementation: its
   GraphQL API at the fixed `https://api.linear.app/graphql` with the job's
-  personal API key, and the pure mapping from Linear's shapes. Files uploaded into
-  Linear text are attachments; `resolveAttachmentDownload` follows
-  `uploads.linear.app`'s redirects itself and sends the key to that host only.
-  `docs/dev/linear-import.md` has the queries, limits and mapping.
+  personal API key, and the pure mapping from Linear's shapes. Issues in
+  Linear's trash are left out. Files uploaded into Linear text are attachments;
+  `resolveAttachmentDownload` follows `uploads.linear.app`'s redirects itself
+  and sends the key to that host only. `docs/dev/linear-import.md` has the
+  queries, limits and mapping.
 - `cross-reference.ts` — pure text matching for a source's own "KEY-123"-style
   issue identifier: no `@repo/db`, no network, unit-tested directly. What
   the Rewrite phase resolves into itsaplan's own issue ids.
@@ -81,9 +83,11 @@ running to completion in one.
   more inside the same advisory lock (`lockAttachmentStorage`) an interactive
   upload takes, so the two never both pass a check that only one of them can
   actually fit. A download that answers anything but 2xx (an error page, a
-  redirect) is refused before its body is read (`attachment-download.ts`). A
-  rejected attachment (`AttachmentRejectedError`) is logged and skipped, not
-  treated as a failed tick.
+  redirect) is refused before its body is read, and one that runs past the
+  size limit is cut off there (`attachment-download.ts`): Linear reports no
+  size, so that is its only size check. A rejected attachment
+  (`AttachmentRejectedError`) is logged and skipped, not treated as a failed
+  tick.
 
 ## Invariants
 
@@ -109,10 +113,10 @@ running to completion in one.
   database. Keep DB access in `store.ts`. Same split for imports: `canonical.ts`,
   `reader.ts`, `plane-adapter.ts`, `linear-adapter.ts`, `linear-mapping.ts`,
   `cross-reference.ts`, `attachment-download.ts`, `import-sources.ts`, and
-  `import-retry.ts` import nothing from
-  `@repo/db` (its state-category normalization, markdown conversion,
-  cursor/rate-limit, and cross-reference matching logic are unit-tested
-  directly); `@repo/db` access stays in `import-store.ts`.
+  `import-retry.ts` import nothing from `@repo/db` (their state-category
+  normalization, markdown conversion, cursor/rate-limit, and cross-reference
+  matching logic are unit-tested directly); `@repo/db` access stays in
+  `import-store.ts`.
 - **An import job's credential is decrypted here, never routed through
   `packages/db/src/domains/`.** That directory is for config more than one
   process reads; only the worker ever decrypts a stored import credential (the
