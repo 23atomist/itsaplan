@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { db, workspace, team, project, projectColumn, issue, importJob, user } from '@repo/db';
+import { db, team, project, projectColumn, issue, importJob, user } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { createLocalIssueAndRecord, type ClaimedImportJob } from '../../import-store';
 import { runRewrite } from '../../import-worker';
@@ -16,14 +16,7 @@ interface LinearJob {
 }
 
 async function makeLinearJob(teamKey: string): Promise<LinearJob> {
-  const [ws] = await db
-    .insert(workspace)
-    .values({ name: 'Importers' })
-    .returning({ id: workspace.id });
-  const [teamRow] = await db
-    .insert(team)
-    .values({ workspaceId: ws!.id, name: 'Importers' })
-    .returning({ id: team.id });
+  const [teamRow] = await db.insert(team).values({ name: 'Importers' }).returning({ id: team.id });
   const projectKey = randomUUID().slice(0, 8);
   const [projectRow] = await db
     .insert(project)

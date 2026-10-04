@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import {
-  db,
-  workspace,
-  team,
-  project,
-  projectColumn,
-  issue,
-  issueActivity,
-  importJob,
-  user,
-} from '@repo/db';
+import { db, team, project, projectColumn, issue, issueActivity, importJob, user } from '@repo/db';
 import { and, eq } from 'drizzle-orm';
 import { insertDiscoveredIds, type ClaimedImportJob } from '../../import-store';
 import { runCreate } from '../../import-worker';
@@ -22,14 +12,7 @@ import type { CanonicalComment, CanonicalIssue } from '../../canonical';
 // as the worker would have claimed it.
 
 async function makeCreateJob(): Promise<ClaimedImportJob> {
-  const [ws] = await db
-    .insert(workspace)
-    .values({ name: 'Importers' })
-    .returning({ id: workspace.id });
-  const [teamRow] = await db
-    .insert(team)
-    .values({ workspaceId: ws!.id, name: 'Importers' })
-    .returning({ id: team.id });
+  const [teamRow] = await db.insert(team).values({ name: 'Importers' }).returning({ id: team.id });
   const [projectRow] = await db
     .insert(project)
     .values({ teamId: teamRow!.id, key: randomUUID().slice(0, 8), name: 'Imported' })

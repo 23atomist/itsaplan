@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import {
-  db,
-  workspace,
-  team,
-  project,
-  projectColumn,
-  issue,
-  issueActivity,
-  importJob,
-  user,
-} from '@repo/db';
+import { db, team, project, projectColumn, issue, issueActivity, importJob, user } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import {
   createLocalIssueAndRecord,
@@ -23,14 +13,7 @@ import {
 // 'paused' so no other test's claimDueImportJobs picks them up.
 
 async function makeProject(): Promise<{ projectId: number; columnId: number; userId: string }> {
-  const [ws] = await db
-    .insert(workspace)
-    .values({ name: 'Importers' })
-    .returning({ id: workspace.id });
-  const [teamRow] = await db
-    .insert(team)
-    .values({ workspaceId: ws!.id, name: 'Importers' })
-    .returning({ id: team.id });
+  const [teamRow] = await db.insert(team).values({ name: 'Importers' }).returning({ id: team.id });
   const [projectRow] = await db
     .insert(project)
     .values({ teamId: teamRow!.id, key: randomUUID().slice(0, 8), name: 'Imported' })
