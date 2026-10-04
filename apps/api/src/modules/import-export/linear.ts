@@ -46,9 +46,14 @@ interface Connection<T> {
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
 }
 
+interface GraphqlError {
+  message: string;
+  extensions?: { code?: string; userError?: boolean; userPresentableMessage?: string };
+}
+
 interface GraphqlResponse<D> {
   data?: D | null;
-  errors?: { message: string; extensions?: { code?: string } }[];
+  errors?: GraphqlError[];
 }
 
 const TEAMS_QUERY = `query Teams($after: String) {
@@ -73,6 +78,8 @@ const STATES_QUERY = `query States($teamId: String!, $after: String) {
     }
   }
 }`;
+
+const USER_ERROR_CODES = new Set(['INVALID_INPUT', 'FORBIDDEN']);
 
 const STATE_CATEGORY_MAP: Record<string, StateCategory> = {
   triage: 'backlog',
@@ -109,6 +116,14 @@ async function linearQuery<D>(
   }
   if (response.status === 429 || codes.includes('RATELIMITED')) {
     throw new HttpError(502, "Linear's rate limit was reached. Try again in a few minutes.");
+  }
+  // A wrong team id, or one the key cannot see: the caller's mistake, not Linear's.
+  const userError = (body.errors ?? []).find(
+    (e) => e.extensions?.userError || USER_ERROR_CODES.has(e.extensions?.code ?? ''),
+  );
+  if (userError) {
+    const shown = userError.extensions?.userPresentableMessage ?? userError.message;
+    throw new HttpError(400, `Linear refused the request: ${shown}`);
   }
   if (!response.ok || !body.data || codes.length > 0) {
     throw new HttpError(502, `Linear request failed with status ${response.status}.`);
@@ -188,11 +203,17 @@ export async function previewLinearStates(
   const id = teamId.trim();
   if (!id) throw new HttpError(400, 'teamId is required');
   type StateNode = { id: string; name: string; type: string; position: number };
-  const states = await linearPaginate<StateNode, { team: { connection: Connection<StateNode> } }>(
+  const states = await linearPaginate<
+    StateNode,
+    { team: { connection: Connection<StateNode> } | null }
+  >(
     apiKey,
     STATES_QUERY,
     { teamId: id },
-    (data) => data.team.connection,
+    (data) => {
+      if (!data.team) throw new HttpError(400, 'Linear team not found.');
+      return data.team.connection;
+    },
     fetch,
   );
   return {
