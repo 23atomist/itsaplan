@@ -330,6 +330,7 @@ async function createComments(
       ? (localIdBySourceId.get(comment.replyToSourceId) ?? null)
       : null;
     const localId = await createLocalComment(
+      job.id,
       issueLocalId,
       authorUserId,
       comment.authorName,
