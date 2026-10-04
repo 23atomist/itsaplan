@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'bun:test';
+import type { PinnedRequestInit } from '@repo/net';
 import {
+  PlaneReader,
   normalizeStateCategory,
   nextPageCursor,
   rateLimitBackoffMs,
   htmlToMarkdown,
 } from '../../plane-adapter';
+import { SourceRateLimitedError } from '../../reader';
 
 describe('normalizeStateCategory', () => {
   it("maps the British-spelled cancelled to itsaplan's canceled", () => {
@@ -135,5 +138,59 @@ describe('htmlToMarkdown', () => {
 
   it('returns an empty string for empty input', () => {
     expect(htmlToMarkdown('')).toBe('');
+  });
+});
+
+interface SentRequest {
+  url: string;
+  init: PinnedRequestInit | undefined;
+}
+
+function readerAnswering(response: Response, sent: SentRequest[] = []): PlaneReader {
+  const credential = {
+    baseUrl: 'https://plane.example.test/',
+    workspaceSlug: 'acme',
+    apiKey: 'plane-api-key',
+  };
+  return new PlaneReader(credential, 'project-1', async (url, init) => {
+    sent.push({ url, init });
+    return response;
+  });
+}
+
+describe('PlaneReader', () => {
+  it('sends the API key to the project-scoped Plane endpoint', async () => {
+    const sent: SentRequest[] = [];
+    const reader = readerAnswering(
+      Response.json({ results: [], next_cursor: null, next_page_results: false }),
+      sent,
+    );
+    expect(await reader.listStates()).toEqual([]);
+    expect(sent).toEqual([
+      {
+        url: 'https://plane.example.test/api/v1/workspaces/acme/projects/project-1/states/',
+        init: { headers: { 'X-Api-Key': 'plane-api-key' }, timeoutMs: 15_000 },
+      },
+    ]);
+  });
+
+  it('throws the source-neutral rate-limit error on a 429', async () => {
+    const reader = readerAnswering(
+      new Response('', { status: 429, headers: { 'retry-after': '30' } }),
+    );
+    const error = await reader.listStates().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SourceRateLimitedError);
+    expect((error as SourceRateLimitedError).retryAfterMs).toBe(30_000);
+    expect((error as Error).message).toBe('Plane rate limit reached');
+  });
+
+  it('throws it when the remaining budget reaches zero on a 200', async () => {
+    const reader = readerAnswering(
+      Response.json(
+        { results: [], next_cursor: null, next_page_results: false },
+        { headers: { 'x-ratelimit-remaining': '0' } },
+      ),
+    );
+    await expect(reader.listStates()).rejects.toBeInstanceOf(SourceRateLimitedError);
   });
 });

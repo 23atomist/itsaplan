@@ -1,5 +1,5 @@
 import { pinnedFetch } from '@repo/net';
-import type { Page, SourceReader } from './reader';
+import { SourceRateLimitedError, type Page, type SourceReader } from './reader';
 import type {
   CanonicalState,
   CanonicalStateCategory,
@@ -23,15 +23,6 @@ export interface PlaneCredential {
 }
 
 const PER_PAGE = 100;
-
-// Thrown when Plane's rate limit is hit (or about to be): x-ratelimit-remaining
-// reaches 0, or a 429 arrives. The worker catches this and reschedules the job
-// instead of treating it as a failed attempt.
-export class PlaneRateLimitedError extends Error {
-  constructor(public readonly retryAfterMs: number) {
-    super('Plane rate limit reached');
-  }
-}
 
 // A 404 confirmed live to mean "this Plane version doesn't have this
 // endpoint" (custom properties, work item types, ...) rather than a broken
@@ -217,6 +208,7 @@ export class PlaneReader implements SourceReader {
   constructor(
     private readonly credential: PlaneCredential,
     private readonly projectId: string,
+    private readonly fetch: typeof pinnedFetch = pinnedFetch,
   ) {}
 
   async listStates(): Promise<CanonicalState[]> {
@@ -376,7 +368,7 @@ export class PlaneReader implements SourceReader {
   private async requestRaw(path: string): Promise<Response> {
     const base = this.credential.baseUrl.replace(/\/$/, '');
     const url = `${base}/api/v1/workspaces/${this.credential.workspaceSlug}/projects/${this.projectId}${path}`;
-    const res = await pinnedFetch(url, {
+    const res = await this.fetch(url, {
       headers: { 'X-Api-Key': this.credential.apiKey },
       timeoutMs: 15_000,
     });
@@ -386,7 +378,8 @@ export class PlaneReader implements SourceReader {
       resetEpochSec: res.headers.get('x-ratelimit-reset'),
       retryAfterSec: res.headers.get('retry-after'),
     });
-    if (backoff !== null) throw new PlaneRateLimitedError(backoff);
+    // x-ratelimit-remaining reaching 0 counts too, not only a 429.
+    if (backoff !== null) throw new SourceRateLimitedError(backoff, 'Plane rate limit reached');
     if (res.status === 404) throw new PlaneNotFoundError(path);
     return res;
   }
