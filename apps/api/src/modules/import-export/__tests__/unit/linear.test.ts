@@ -183,6 +183,44 @@ describe('previewLinearStates', () => {
   });
 });
 
+describe('Linear user errors', () => {
+  it('answers 400 when the team does not exist or the key cannot see it', async () => {
+    const fetch = answering([Response.json({ data: { team: null } })]);
+    const error = await httpError(previewLinearStates('k', 'team-gone', fetch));
+    expect([error.status, error.message]).toEqual([400, 'Linear team not found.']);
+  });
+
+  it.each([
+    ['INVALID_INPUT', 'invalid input', 'Entity not found: Team', 'Could not find referenced Team.'],
+    ['FORBIDDEN', 'forbidden', 'Forbidden', 'You do not have access to this team.'],
+  ])('answers 400 with what Linear said for a %s error', async (code, type, message, shown) => {
+    const fetch = answering([
+      Response.json({
+        data: null,
+        errors: [
+          {
+            message,
+            extensions: { code, type, userError: true, userPresentableMessage: shown },
+          },
+        ],
+      }),
+    ]);
+    const error = await httpError(previewLinearStates('k', 'team-1', fetch));
+    expect([error.status, error.message]).toEqual([400, `Linear refused the request: ${shown}`]);
+  });
+
+  it("still answers 502 for an error that is not the caller's", async () => {
+    const fetch = answering([
+      Response.json({
+        data: null,
+        errors: [{ message: 'boom', extensions: { code: 'INTERNAL_ERROR', userError: false } }],
+      }),
+    ]);
+    const error = await httpError(previewLinearStates('k', 'team-1', fetch));
+    expect([error.status, error.message]).toEqual([502, 'Linear request failed with status 200.']);
+  });
+});
+
 describe('linearJobFields', () => {
   const base = {
     source: 'linear' as const,
