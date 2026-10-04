@@ -193,4 +193,26 @@ describe('PlaneReader', () => {
     );
     await expect(reader.listStates()).rejects.toBeInstanceOf(SourceRateLimitedError);
   });
+
+  it('resolves an attachment to the redirect target, with no Plane credential attached', async () => {
+    const sent: SentRequest[] = [];
+    const target = 'https://s3.example.test/bucket/report.pdf?X-Amz-Signature=abc';
+    const reader = readerAnswering(
+      new Response(null, { status: 302, headers: { location: target } }),
+      sent,
+    );
+    expect(await reader.resolveAttachmentDownload('issue-1', 'att-1')).toStrictEqual({
+      url: target,
+    });
+    expect(sent[0]!.url).toBe(
+      'https://plane.example.test/api/v1/workspaces/acme/projects/project-1/work-items/issue-1/attachments/att-1/',
+    );
+  });
+
+  it('refuses an attachment resolve that did not redirect', async () => {
+    const reader = readerAnswering(new Response('{}', { status: 200 }));
+    await expect(reader.resolveAttachmentDownload('issue-1', 'att-1')).rejects.toThrow(
+      'Plane attachment resolve did not redirect: GET /work-items/issue-1/attachments/att-1/ -> HTTP 200',
+    );
+  });
 });
