@@ -30,7 +30,7 @@ with the personal API key as `Authorization: <key>` (no `Bearer`; an invalid key
 | `listStates` | `team(id).states`, archived included |
 | `listLabels` | `issueLabels` filtered to the team's labels and the workspace's (`team: { null: true }`), archived included; groups dropped, members named `Group/Name` |
 | `listCycles` | `team(id).cycles`, archived included |
-| `listIssues` | `issues(filter: { team, project: { id: { eq } } \| { null: true } }, includeArchived: true, orderBy: createdAt)` |
+| `listIssues` | `issues(filter: { team, project: { id: { eq } } \| { null: true } }, includeArchived: true, orderBy: createdAt)`; an issue with `trashed` set (in Linear's trash) is dropped |
 | `getIssue` | `issue(id)` |
 | `listIssueRelations` | `issue(id).relations` — never `inverseRelations`, so each relation is read once, from the issue that owns it |
 | `listIssueComments` | `issue(id).comments`, archived included, sorted oldest first |

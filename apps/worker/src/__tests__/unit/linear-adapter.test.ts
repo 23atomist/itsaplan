@@ -122,6 +122,29 @@ describe('LinearReader requests', () => {
     expect(call.query).toContain('includeArchived: true');
   });
 
+  it("skips issues in Linear's trash, which includeArchived also returns", async () => {
+    const sent: SentRequest[] = [];
+    const trashed = issueNode({
+      id: 'issue-506',
+      identifier: 'ATO-506',
+      trashed: true,
+      labels: { nodes: [], pageInfo: { hasNextPage: true } },
+    });
+    const reader = readerAnswering(
+      [
+        Response.json({
+          data: { connection: page([issueNode({ trashed: false }), trashed], null, false) },
+        }),
+      ],
+      sent,
+    );
+
+    const result = await reader.listIssues(null);
+
+    expect(result.items.map((i) => i.sourceId)).toEqual(['issue-505']);
+    expect(graphqlCall(sent[0]!).query).toContain('trashed');
+  });
+
   it("lists the team's issues with no project for a no-project job", async () => {
     const sent: SentRequest[] = [];
     const reader = readerAnswering(
