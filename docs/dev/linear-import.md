@@ -78,20 +78,14 @@ itself.
 
 Files uploaded into Linear text live at `https://uploads.linear.app/...` and need the API key.
 `extractLinearUploads` collects them from the description, then the comments, then link
-attachments hosted there, first mention winning; a bare URL followed by sentence punctuation (`.,;:!?`) is read
-without it. The attachment's source id is
-`"<issue id> <upload URL>"`, so the same file referenced from two issues is attached to both.
+attachments hosted there, first mention winning; a bare URL followed by sentence punctuation
+(`.,;:!?`) is read without it. The attachment's source id is `"<issue id> <upload URL>"`, so
+the same file referenced from two issues is attached to both.
 Linear reports no size or type: the type comes from the file name (Bun's MIME table) and
 `sizeBytes` is 0, so the size check happens on the downloaded bytes. Repeated names on one
 issue get ` (2)`, ` (3)` before the extension (skipping any name already taken, compared
 case-insensitively), because the store reuses an attachment with the same filename on the
 same issue.
-
-## Cycles
-
-The store reuses a cycle by name within a project, so `mapLinearCycles` makes every name in a
-list distinct, case-insensitively: an unnamed cycle is `Cycle <number>`, and a repeated name
-becomes `<name> (Cycle <number>)`, then `<name> (Cycle <number>, 2)` and so on.
 
 `pinnedFetch` follows no redirect and `downloadAttachment` refuses anything but 2xx, so
 `resolveAttachmentDownload` takes the hops itself: a `GET` that reads only the response head
@@ -100,3 +94,9 @@ header is sent only while the host is `uploads.linear.app`, never to the storage
 redirect points at. A 2xx returns the final URL (with the key when that URL is still on
 `uploads.linear.app`); a 429 is a rate limit; any other status, a redirect without a location,
 or a fourth redirect is an `AttachmentRejectedError`, logged and skipped.
+
+## Cycles
+
+The store reuses a cycle by name within a project, so `mapLinearCycles` makes every name in a
+list distinct, case-insensitively: an unnamed cycle is `Cycle <number>`, and a repeated name
+becomes `<name> (Cycle <number>)`, then `<name> (Cycle <number>, 2)` and so on.
