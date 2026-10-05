@@ -552,6 +552,10 @@
       "owner": "Pemilik",
       "admin": "Admin"
     },
+    "titles": {
+      "owner": "Pemilik workspace",
+      "admin": "Admin workspace"
+    },
     "info": {
       "title": "Workspace",
       "description": "Workspace yang memiliki tim Anda.",

@@ -552,6 +552,10 @@
       "owner": "Propietario",
       "admin": "Administrador"
     },
+    "titles": {
+      "owner": "Propietario del espacio",
+      "admin": "Administrador del espacio"
+    },
     "info": {
       "title": "Espacio de trabajo",
       "description": "El espacio de trabajo al que pertenecen tus equipos.",

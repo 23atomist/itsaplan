@@ -552,6 +552,10 @@
       "owner": "Proprietário",
       "admin": "Administrador"
     },
+    "titles": {
+      "owner": "Proprietário do workspace",
+      "admin": "Administrador do workspace"
+    },
     "info": {
       "title": "Workspace",
       "description": "O workspace ao qual suas equipes pertencem.",

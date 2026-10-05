@@ -552,6 +552,10 @@
       "owner": "Owner",
       "admin": "Admin"
     },
+    "titles": {
+      "owner": "Workspace owner",
+      "admin": "Workspace admin"
+    },
     "info": {
       "title": "Workspace",
       "description": "The workspace that owns your teams.",

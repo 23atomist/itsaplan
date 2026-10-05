@@ -552,6 +552,10 @@
       "owner": "所有者",
       "admin": "管理员"
     },
+    "titles": {
+      "owner": "工作区所有者",
+      "admin": "工作区管理员"
+    },
     "info": {
       "title": "工作区",
       "description": "你的团队所属的工作区。",
