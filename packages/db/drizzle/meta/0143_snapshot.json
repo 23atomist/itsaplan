@@ -1,6 +1,6 @@
 {
-  "id": "aa15e1bf-3ddb-45a5-82a9-be30650c34eb",
-  "prevId": "c736bbbe-ac3b-431a-b2b2-a6021af53090",
+  "id": "c78e9e48-c24d-4b18-a209-781a53fca222",
+  "prevId": "aa15e1bf-3ddb-45a5-82a9-be30650c34eb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4088,7 +4088,7 @@
       "checkConstraints": {
         "import_job_source_check": {
           "name": "import_job_source_check",
-          "value": "\"import_job\".\"source\" IN ('plane')"
+          "value": "\"import_job\".\"source\" IN ('plane', 'linear')"
         },
         "import_job_phase_check": {
           "name": "import_job_phase_check",

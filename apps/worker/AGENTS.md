@@ -38,8 +38,9 @@ running to completion in one.
   config types, how to build its reader, and its issue-key prefix for Rewrite. A
   new source adds an entry here; the phases do not change.
 - `import-retry.ts` — what a failed tick does: a rate limit is waited out and
-  never fails the job by itself, a job whose source has no registry entry fails
-  at once, any other error retries with backoff until `MAX_ATTEMPTS` in a row.
+  does not count toward the attempt limit (the claim's bump is undone), a job whose
+  source has no registry entry fails at once, any other error retries with backoff
+  until `MAX_ATTEMPTS` in a row.
 - `plane-adapter.ts` — the Plane implementation. HTTP against a Plane
   instance via `pinnedFetch`, using the credential decrypted from the job row
   (base URL, workspace slug, API key — never from env, since this has to work

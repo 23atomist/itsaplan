@@ -9,11 +9,17 @@ export const MAX_ATTEMPTS = 10;
 const RATE_LIMITED = 'rate limited';
 
 export type TickErrorOutcome =
-  { action: 'retry'; delayMs: number; lastError: string } | { action: 'fail'; lastError: string };
+  | { action: 'retry'; delayMs: number; lastError: string; countsAsAttempt: boolean }
+  | { action: 'fail'; lastError: string };
 
 export function tickErrorOutcome(error: unknown, attempts: number): TickErrorOutcome {
   if (error instanceof SourceRateLimitedError) {
-    return { action: 'retry', delayMs: error.retryAfterMs, lastError: RATE_LIMITED };
+    return {
+      action: 'retry',
+      delayMs: error.retryAfterMs,
+      lastError: RATE_LIMITED,
+      countsAsAttempt: false,
+    };
   }
   // No retry can give a job a source this worker does not have.
   if (error instanceof UnsupportedImportSourceError) {
@@ -21,5 +27,10 @@ export function tickErrorOutcome(error: unknown, attempts: number): TickErrorOut
   }
   const message = error instanceof Error ? error.message : String(error);
   if (attempts >= MAX_ATTEMPTS) return { action: 'fail', lastError: message };
-  return { action: 'retry', delayMs: equalJitterBackoffMs(attempts), lastError: message };
+  return {
+    action: 'retry',
+    delayMs: equalJitterBackoffMs(attempts),
+    lastError: message,
+    countsAsAttempt: true,
+  };
 }
