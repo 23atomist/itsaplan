@@ -214,6 +214,7 @@ describe('mapLinearIssue', () => {
             { title: 'Fix [api] #12', url: 'https://github.com/acme/app/pull/12' },
             { title: 'diagram.png', url: UPLOAD },
             { title: '', url: 'https://example.com/spec' },
+            { title: 'C:\\temp\\', url: 'https://example.com/dir' },
           ],
         },
       }),
@@ -222,7 +223,7 @@ describe('mapLinearIssue', () => {
     expect(issue.descriptionMarkdown).toBe(
       [
         'Body text.',
-        '## Links\n\n- [Fix \\[api\\] #12](https://github.com/acme/app/pull/12)\n- [https://example.com/spec](https://example.com/spec)',
+        '## Links\n\n- [Fix \\[api\\] #12](https://github.com/acme/app/pull/12)\n- [https://example.com/spec](https://example.com/spec)\n- [C:\\\\temp\\\\](https://example.com/dir)',
         'Imported from Linear: ATO-505',
       ].join('\n\n'),
     );

@@ -206,7 +206,7 @@ function inScope(ref: LinearIssueRef, scope: LinearScope): boolean {
 }
 
 function escapeLinkText(text: string): string {
-  return text.replace(/[[\]]/g, '\\$&');
+  return text.replace(/[\\[\]]/g, '\\$&');
 }
 
 // The description as written, then the link attachments under "Links", then the
